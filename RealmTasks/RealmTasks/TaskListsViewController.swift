@@ -10,6 +10,8 @@ import UIKit
 
 class TaskListsViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
 
+    
+    var currentCreateAction:UIAlertAction!
     @IBOutlet weak var taskListsTableView: UITableView!
     
     override func viewDidLoad() {
@@ -29,6 +31,31 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
     }
     
     @IBAction func didClickOnAddButton(sender: UIBarButtonItem) {
+        
+        let alertController = UIAlertController(title: "New Task List", message: "Write the name of your task list.", preferredStyle: UIAlertControllerStyle.Alert)
+        let createAction = UIAlertAction(title: "Create", style: UIAlertActionStyle.Default) { (action) -> Void in
+            
+            let listName = alertController.textFields?.first?.text
+            print(listName)
+        }
+        
+        alertController.addAction(createAction)
+        createAction.enabled = false
+        self.currentCreateAction = createAction
+        
+        alertController.addAction(UIAlertAction(title: "Cancel", style: UIAlertActionStyle.Cancel, handler: nil))
+        
+        alertController.addTextFieldWithConfigurationHandler { (textField) -> Void in
+            textField.placeholder = "Task List Name"
+            textField.addTarget(self, action: "listNameFieldDidChange:", forControlEvents: UIControlEvents.EditingChanged)
+        }
+        
+        self.presentViewController(alertController, animated: true, completion: nil)
+    }
+    
+    //Enable the create action of the alert only if textfield text is not empty
+    func listNameFieldDidChange(textField:UITextField){
+        self.currentCreateAction.enabled = textField.text?.characters.count > 0
     }
     
     // MARK: - UITableViewDataSource -
