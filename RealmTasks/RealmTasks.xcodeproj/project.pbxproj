@@ -13,6 +13,7 @@
 		DA0BDB201BCC42EA00318A58 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = DA0BDB1E1BCC42EA00318A58 /* Main.storyboard */; };
 		DA0BDB221BCC42EA00318A58 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DA0BDB211BCC42EA00318A58 /* Assets.xcassets */; };
 		DA0BDB251BCC42EA00318A58 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = DA0BDB231BCC42EA00318A58 /* LaunchScreen.storyboard */; };
+		DA646C7F1BCD7615002965D7 /* Task.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA646C7E1BCD7615002965D7 /* Task.swift */; settings = {ASSET_TAGS = (); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,6 +27,7 @@
 		DA0BDB211BCC42EA00318A58 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		DA0BDB241BCC42EA00318A58 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		DA0BDB261BCC42EA00318A58 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		DA646C7E1BCD7615002965D7 /* Task.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Task.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,6 +80,7 @@
 		DA0BDB191BCC42EA00318A58 /* RealmTasks */ = {
 			isa = PBXGroup;
 			children = (
+				DA646C7B1BCD7587002965D7 /* Model */,
 				DA0BDB1A1BCC42EA00318A58 /* AppDelegate.swift */,
 				DA0BDB1C1BCC42EA00318A58 /* ViewController.swift */,
 				DA0BDB1E1BCC42EA00318A58 /* Main.storyboard */,
@@ -86,6 +89,14 @@
 				DA0BDB261BCC42EA00318A58 /* Info.plist */,
 			);
 			path = RealmTasks;
+			sourceTree = "<group>";
+		};
+		DA646C7B1BCD7587002965D7 /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				DA646C7E1BCD7615002965D7 /* Task.swift */,
+			);
+			path = Model;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -210,6 +221,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DA0BDB1D1BCC42EA00318A58 /* ViewController.swift in Sources */,
+				DA646C7F1BCD7615002965D7 /* Task.swift in Sources */,
 				DA0BDB1B1BCC42EA00318A58 /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
