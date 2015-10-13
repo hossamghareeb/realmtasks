@@ -14,6 +14,7 @@
 		DA0BDB221BCC42EA00318A58 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DA0BDB211BCC42EA00318A58 /* Assets.xcassets */; };
 		DA0BDB251BCC42EA00318A58 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = DA0BDB231BCC42EA00318A58 /* LaunchScreen.storyboard */; };
 		DA646C7F1BCD7615002965D7 /* Task.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA646C7E1BCD7615002965D7 /* Task.swift */; settings = {ASSET_TAGS = (); }; };
+		DA646C811BCD877E002965D7 /* TaskList.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA646C801BCD877E002965D7 /* TaskList.swift */; settings = {ASSET_TAGS = (); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 		DA0BDB241BCC42EA00318A58 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		DA0BDB261BCC42EA00318A58 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		DA646C7E1BCD7615002965D7 /* Task.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Task.swift; sourceTree = "<group>"; };
+		DA646C801BCD877E002965D7 /* TaskList.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TaskList.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -95,6 +97,7 @@
 			isa = PBXGroup;
 			children = (
 				DA646C7E1BCD7615002965D7 /* Task.swift */,
+				DA646C801BCD877E002965D7 /* TaskList.swift */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -220,6 +223,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DA646C811BCD877E002965D7 /* TaskList.swift in Sources */,
 				DA0BDB1D1BCC42EA00318A58 /* ViewController.swift in Sources */,
 				DA646C7F1BCD7615002965D7 /* Task.swift in Sources */,
 				DA0BDB1B1BCC42EA00318A58 /* AppDelegate.swift in Sources */,
