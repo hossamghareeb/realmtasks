@@ -32,7 +32,7 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
     
     @IBAction func didClickOnAddButton(sender: UIBarButtonItem) {
         
-        let alertController = UIAlertController(title: "New Task List", message: "Write the name of your task list.", preferredStyle: UIAlertControllerStyle.Alert)
+        let alertController = UIAlertController(title: "New Tasks List", message: "Write the name of your tasks list.", preferredStyle: UIAlertControllerStyle.Alert)
         let createAction = UIAlertAction(title: "Create", style: UIAlertActionStyle.Default) { (action) -> Void in
             
             let listName = alertController.textFields?.first?.text
