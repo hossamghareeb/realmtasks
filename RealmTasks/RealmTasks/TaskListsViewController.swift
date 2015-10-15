@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import RealmSwift
 
 class TaskListsViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
 
@@ -18,6 +19,32 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
         super.viewDidLoad()
 
         // Do any additional setup after loading the view.
+        
+        let lists = uiRealm.objects(TaskList)
+        let tasks = uiRealm.objects(Task)
+        
+        print(lists)
+        print(tasks)
+        
+//        let taskListA = TaskList()
+//        taskListA.name = "Wishlist"
+//        
+//        let taskListB = TaskList(value: ["MoviesList", NSDate(), [["The Martian", NSDate(), "", false], ["The Maze Runner", NSDate(), "", true]]])
+//        
+//        
+//        let wish1 = Task()
+//        wish1.name = "iPhone6s"
+//        wish1.notes = "64 GB, Gold"
+//        
+//        let wish2 = Task(value: ["name": "Game Console", "notes": "Playstation 4, 1 TB"])
+//        let wish3 = Task(value: ["Car", NSDate(), "Auto R8", false])
+//        
+//        taskListA.tasks.appendContentsOf([wish1, wish2, wish3])
+//        
+//        uiRealm.write { () -> Void in
+//            uiRealm.add([taskListA, taskListB])
+//        }
+        
     }
 
     override func didReceiveMemoryWarning() {
@@ -62,7 +89,7 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
     
     func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int
     {
-        return 5
+        return 0
     }
     
     func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell{
