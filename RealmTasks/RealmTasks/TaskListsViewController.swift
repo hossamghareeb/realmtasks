@@ -13,34 +13,13 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
 
     var lists : Results<TaskList>!
     
+    var isEditingMode = false
+    
     var currentCreateAction:UIAlertAction!
     @IBOutlet weak var taskListsTableView: UITableView!
     
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        // Do any additional setup after loading the view.
-        
-        
-        
-//        let taskListA = TaskList()
-//        taskListA.name = "Wishlist"
-//        
-//        let taskListB = TaskList(value: ["MoviesList", NSDate(), [["The Martian", NSDate(), "", false], ["The Maze Runner", NSDate(), "", true]]])
-//        
-//        
-//        let wish1 = Task()
-//        wish1.name = "iPhone6s"
-//        wish1.notes = "64 GB, Gold"
-//        
-//        let wish2 = Task(value: ["name": "Game Console", "notes": "Playstation 4, 1 TB"])
-//        let wish3 = Task(value: ["Car", NSDate(), "Auto R8", false])
-//        
-//        taskListA.tasks.appendContentsOf([wish1, wish2, wish3])
-//        
-//        uiRealm.write { () -> Void in
-//            uiRealm.add([taskListA, taskListB])
-//        }
     }
     
     override func viewWillAppear(animated: Bool) {
@@ -61,6 +40,8 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
     // MARK: - User Actions -
     
     @IBAction func didClickOnEditButton(sender: UIBarButtonItem) {
+        isEditingMode = !isEditingMode
+        self.taskListsTableView.setEditing(isEditingMode, animated: true)
     }
     
     @IBAction func didClickOnAddButton(sender: UIBarButtonItem) {
@@ -120,6 +101,27 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
         cell?.textLabel?.text = list.name
         cell?.detailTextLabel?.text = "\(list.tasks.count) Tasks"
         return cell!
+    }
+    
+    func tableView(tableView: UITableView, editActionsForRowAtIndexPath indexPath: NSIndexPath) -> [UITableViewRowAction]? {
+        let deleteAction = UITableViewRowAction(style: UITableViewRowActionStyle.Destructive, title: "Delete") { (deleteAction, indexPath) -> Void in
+            
+            //Deletion will go here
+            
+            let listToBeDeleted = self.lists[indexPath.row]
+            uiRealm.write({ () -> Void in
+                uiRealm.delete(listToBeDeleted)
+                self.readTasksAndUpdateUI()
+            })
+        }
+        let editAction = UITableViewRowAction(style: UITableViewRowActionStyle.Normal, title: "Edit") { (editAction, indexPath) -> Void in
+            
+            // Editing will go here
+            print(indexPath)
+            
+            
+        }
+        return [deleteAction, editAction]
     }
 
     /*
