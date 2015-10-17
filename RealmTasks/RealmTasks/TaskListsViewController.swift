@@ -11,6 +11,7 @@ import RealmSwift
 
 class TaskListsViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
 
+    var lists : Results<TaskList>!
     
     var currentCreateAction:UIAlertAction!
     @IBOutlet weak var taskListsTableView: UITableView!
@@ -20,11 +21,7 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
 
         // Do any additional setup after loading the view.
         
-        let lists = uiRealm.objects(TaskList)
-        let tasks = uiRealm.objects(Task)
         
-        print(lists)
-        print(tasks)
         
 //        let taskListA = TaskList()
 //        taskListA.name = "Wishlist"
@@ -44,7 +41,16 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
 //        uiRealm.write { () -> Void in
 //            uiRealm.add([taskListA, taskListB])
 //        }
+    }
+    
+    override func viewWillAppear(animated: Bool) {
+        readTasksAndUpdateUI()
+    }
+    
+    func readTasksAndUpdateUI(){
         
+        lists = uiRealm.objects(TaskList)
+        self.taskListsTableView.reloadData()
     }
 
     override func didReceiveMemoryWarning() {
@@ -63,6 +69,16 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
         let createAction = UIAlertAction(title: "Create", style: UIAlertActionStyle.Default) { (action) -> Void in
             
             let listName = alertController.textFields?.first?.text
+            
+            let newTaskList = TaskList()
+            newTaskList.name = listName!
+            
+            uiRealm.write({ () -> Void in
+                
+                uiRealm.add(newTaskList)
+                self.readTasksAndUpdateUI()
+            })
+            
             print(listName)
         }
         
@@ -89,14 +105,20 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
     
     func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int
     {
+        if let listsTasks = lists{
+            return listsTasks.count
+        }
         return 0
     }
     
     func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell{
         
         let cell = tableView.dequeueReusableCellWithIdentifier("listCell")
-        cell?.textLabel?.text = "List \(indexPath.row)"
-        cell?.detailTextLabel?.text = "0 Tasks"
+        
+        let list = lists[indexPath.row]
+        
+        cell?.textLabel?.text = list.name
+        cell?.detailTextLabel?.text = "\(list.tasks.count) Tasks"
         return cell!
     }
 
