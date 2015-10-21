@@ -16,6 +16,7 @@
 		DA646C7F1BCD7615002965D7 /* Task.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA646C7E1BCD7615002965D7 /* Task.swift */; settings = {ASSET_TAGS = (); }; };
 		DA646C811BCD877E002965D7 /* TaskList.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA646C801BCD877E002965D7 /* TaskList.swift */; settings = {ASSET_TAGS = (); }; };
 		DA646C831BCD98A6002965D7 /* TaskListsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA646C821BCD98A6002965D7 /* TaskListsViewController.swift */; settings = {ASSET_TAGS = (); }; };
+		DA6D6D011BD5766800DFF8DC /* TasksViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA6D6D001BD5766800DFF8DC /* TasksViewController.swift */; settings = {ASSET_TAGS = (); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +33,7 @@
 		DA646C7E1BCD7615002965D7 /* Task.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Task.swift; sourceTree = "<group>"; };
 		DA646C801BCD877E002965D7 /* TaskList.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TaskList.swift; sourceTree = "<group>"; };
 		DA646C821BCD98A6002965D7 /* TaskListsViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TaskListsViewController.swift; sourceTree = "<group>"; };
+		DA6D6D001BD5766800DFF8DC /* TasksViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TasksViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -92,6 +94,7 @@
 				DA0BDB211BCC42EA00318A58 /* Assets.xcassets */,
 				DA0BDB231BCC42EA00318A58 /* LaunchScreen.storyboard */,
 				DA0BDB261BCC42EA00318A58 /* Info.plist */,
+				DA6D6D001BD5766800DFF8DC /* TasksViewController.swift */,
 			);
 			path = RealmTasks;
 			sourceTree = "<group>";
@@ -231,6 +234,7 @@
 				DA646C831BCD98A6002965D7 /* TaskListsViewController.swift in Sources */,
 				DA646C7F1BCD7615002965D7 /* Task.swift in Sources */,
 				DA0BDB1B1BCC42EA00318A58 /* AppDelegate.swift in Sources */,
+				DA6D6D011BD5766800DFF8DC /* TasksViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
