@@ -2,6 +2,7 @@
 <document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="8191" systemVersion="15A284" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" initialViewController="RSh-4w-lZ1">
     <dependencies>
         <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="8154"/>
+        <capability name="Navigation items with more than one left or right bar item" minToolsVersion="7.0"/>
     </dependencies>
     <scenes>
         <!--Task Lists-->
@@ -141,7 +142,20 @@
                         </constraints>
                     </view>
                     <extendedEdge key="edgesForExtendedLayout"/>
-                    <navigationItem key="navigationItem" id="JXb-mq-Fd8"/>
+                    <navigationItem key="navigationItem" id="JXb-mq-Fd8">
+                        <rightBarButtonItems>
+                            <barButtonItem systemItem="add" id="Puy-cU-Pnd">
+                                <connections>
+                                    <action selector="didClickOnNewTask:" destination="9dS-Cc-Or1" id="Rkd-0G-wzl"/>
+                                </connections>
+                            </barButtonItem>
+                            <barButtonItem systemItem="edit" id="vE6-Dx-4AQ">
+                                <connections>
+                                    <action selector="didClickOnEditTasks:" destination="9dS-Cc-Or1" id="rP3-nV-5ji"/>
+                                </connections>
+                            </barButtonItem>
+                        </rightBarButtonItems>
+                    </navigationItem>
                     <connections>
                         <outlet property="tasksTableView" destination="B8B-v7-wJH" id="ctS-LG-xm4"/>
                     </connections>

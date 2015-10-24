@@ -15,15 +15,34 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
     var selectedList : TaskList!
     var openTasks : Results<Task>!
     var completedTasks : Results<Task>!
-
+    var currentCreateAction:UIAlertAction!
+    
+    var isEditingMode = false
+    
     @IBOutlet weak var tasksTableView: UITableView!
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // Do any additional setup after loading the view.
         self.title = selectedList.name
+        readTasksAndUpateUI()
+    }
+    
+    
+    // MARK: - User Actions -
+    
+    @IBAction func didClickOnEditTasks(sender: AnyObject) {
+        isEditingMode = !isEditingMode
+        self.tasksTableView.setEditing(isEditingMode, animated: true)
+    }
+    @IBAction func didClickOnNewTask(sender: AnyObject) {
+        self.displayAlertToAddTask(nil)
+    }
+    func readTasksAndUpateUI(){
+        
         completedTasks = self.selectedList.tasks.filter("isCompleted = true")
         openTasks = self.selectedList.tasks.filter("isCompleted = false")
+        
+        self.tasksTableView.reloadData()
     }
 
     override func didReceiveMemoryWarning() {
@@ -62,6 +81,103 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
         
         cell?.textLabel?.text = task.name
         return cell!
+    }
+    
+    
+    func displayAlertToAddTask(updatedTask:Task!){
+        
+        var title = "New Task"
+        var doneTitle = "Create"
+        if updatedTask != nil{
+            title = "Update Task"
+            doneTitle = "Update"
+        }
+        
+        let alertController = UIAlertController(title: title, message: "Write the name of your task.", preferredStyle: UIAlertControllerStyle.Alert)
+        let createAction = UIAlertAction(title: doneTitle, style: UIAlertActionStyle.Default) { (action) -> Void in
+            
+            let taskName = alertController.textFields?.first?.text
+            
+            if updatedTask != nil{
+                // update mode
+                uiRealm.write({ () -> Void in
+                    updatedTask.name = taskName!
+                    self.readTasksAndUpateUI()
+                })
+            }
+            else{
+                
+                let newTask = Task()
+                newTask.name = taskName!
+                
+                uiRealm.write({ () -> Void in
+                    
+                    self.selectedList.tasks.append(newTask)
+                    self.readTasksAndUpateUI()
+                })
+            }
+            
+            
+            
+            print(taskName)
+        }
+        
+        alertController.addAction(createAction)
+        createAction.enabled = false
+        self.currentCreateAction = createAction
+        
+        alertController.addAction(UIAlertAction(title: "Cancel", style: UIAlertActionStyle.Cancel, handler: nil))
+        
+        alertController.addTextFieldWithConfigurationHandler { (textField) -> Void in
+            textField.placeholder = "Task Name"
+            textField.addTarget(self, action: "taskNameFieldDidChange:", forControlEvents: UIControlEvents.EditingChanged)
+            if updatedTask != nil{
+                textField.text = updatedTask.name
+            }
+        }
+        
+        self.presentViewController(alertController, animated: true, completion: nil)
+    }
+
+    //Enable the create action of the alert only if textfield text is not empty
+    func taskNameFieldDidChange(textField:UITextField){
+        self.currentCreateAction.enabled = textField.text?.characters.count > 0
+    }
+    
+    
+    func tableView(tableView: UITableView, editActionsForRowAtIndexPath indexPath: NSIndexPath) -> [UITableViewRowAction]? {
+        let deleteAction = UITableViewRowAction(style: UITableViewRowActionStyle.Destructive, title: "Delete") { (deleteAction, indexPath) -> Void in
+            
+            //Deletion will go here
+            
+            var taskToBeDeleted: Task!
+            if indexPath.section == 0{
+                taskToBeDeleted = self.openTasks[indexPath.row]
+            }
+            else{
+                taskToBeDeleted = self.completedTasks[indexPath.row]
+            }
+            
+            uiRealm.write({ () -> Void in
+                uiRealm.delete(taskToBeDeleted)
+                self.readTasksAndUpateUI()
+            })
+        }
+        let editAction = UITableViewRowAction(style: UITableViewRowActionStyle.Normal, title: "Edit") { (editAction, indexPath) -> Void in
+            
+            // Editing will go here
+            var taskToBeUpdated: Task!
+            if indexPath.section == 0{
+                taskToBeUpdated = self.openTasks[indexPath.row]
+            }
+            else{
+                taskToBeUpdated = self.completedTasks[indexPath.row]
+            }
+            
+            self.displayAlertToAddTask(taskToBeUpdated)
+            
+        }
+        return [deleteAction, editAction]
     }
 
     /*
