@@ -177,7 +177,23 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
             self.displayAlertToAddTask(taskToBeUpdated)
             
         }
-        return [deleteAction, editAction]
+        
+        let doneAction = UITableViewRowAction(style: UITableViewRowActionStyle.Normal, title: "Done") { (doneAction, indexPath) -> Void in
+            // Editing will go here
+            var taskToBeUpdated: Task!
+            if indexPath.section == 0{
+                taskToBeUpdated = self.openTasks[indexPath.row]
+            }
+            else{
+                taskToBeUpdated = self.completedTasks[indexPath.row]
+            }
+            uiRealm.write({ () -> Void in
+                taskToBeUpdated.isCompleted = true
+                self.readTasksAndUpateUI()
+            })
+            
+        }
+        return [deleteAction, editAction, doneAction]
     }
 
     /*

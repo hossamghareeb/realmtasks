@@ -40,6 +40,21 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
     
     // MARK: - User Actions -
     
+    
+    @IBAction func didSelectSortCriteria(sender: UISegmentedControl) {
+        
+        if sender.selectedSegmentIndex == 0{
+            
+            // A-Z
+            self.lists = self.lists.sorted("name")
+        }
+        else{
+            // date
+            self.lists = self.lists.sorted("createdAt", ascending:false)
+        }
+        self.taskListsTableView.reloadData()
+    }
+    
     @IBAction func didClickOnEditButton(sender: UIBarButtonItem) {
         isEditingMode = !isEditingMode
         self.taskListsTableView.setEditing(isEditingMode, animated: true)
