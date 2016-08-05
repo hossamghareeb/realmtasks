@@ -38,12 +38,13 @@
 
 @implementation RLMArray {
 @public
-    // array for standalone
+    // Backing array when this instance is unmanaged
     NSMutableArray *_backingArray;
 }
 
 template<typename IndexSetFactory>
-static void changeArray(__unsafe_unretained RLMArray *const ar, NSKeyValueChange kind, dispatch_block_t f, IndexSetFactory&& is) {
+static void changeArray(__unsafe_unretained RLMArray *const ar,
+                        NSKeyValueChange kind, dispatch_block_t f, IndexSetFactory&& is) {
     if (!ar->_backingArray) {
         ar->_backingArray = [NSMutableArray new];
     }
@@ -128,16 +129,19 @@ static void changeArray(__unsafe_unretained RLMArray *const ar, NSKeyValueChange
 }
 
 //
-// Standalone RLMArray implementation
+// Unmanaged RLMArray implementation
 //
 
 static void RLMValidateMatchingObjectType(RLMArray *array, RLMObject *object) {
     if (!object) {
         @throw RLMException(@"Object must not be nil");
     }
+    if (!object->_objectSchema) {
+        @throw RLMException(@"Object cannot be inserted unless the schema is initialized. "
+                            "This can happen if you try to insert objects into a RLMArray / List from a default value or from an overriden unmanaged initializer (`init()`).");
+    }
     if (![array->_objectClassName isEqualToString:object->_objectSchema.className]) {
-        NSString *message = [NSString stringWithFormat:@"Object type '%@' does not match RLMArray type '%@'.", object->_objectSchema.className, array->_objectClassName];
-        @throw RLMException(message);
+        @throw RLMException(@"Object type '%@' does not match RLMArray type '%@'.", object->_objectSchema.className, array->_objectClassName);
     }
 }
 
@@ -145,8 +149,8 @@ static void RLMValidateArrayBounds(__unsafe_unretained RLMArray *const ar,
                                    NSUInteger index, bool allowOnePastEnd=false) {
     NSUInteger max = ar->_backingArray.count + allowOnePastEnd;
     if (index >= max) {
-        @throw RLMException([NSString stringWithFormat:@"Index %llu is out of bounds (must be less than %llu).",
-                             (unsigned long long)index, (unsigned long long)max]);
+        @throw RLMException(@"Index %llu is out of bounds (must be less than %llu).",
+                            (unsigned long long)index, (unsigned long long)max);
     }
 }
 
@@ -175,7 +179,7 @@ static void RLMValidateArrayBounds(__unsafe_unretained RLMArray *const ar,
     // reflect changes made during enumeration. This copy has to be autoreleased
     // (since there's nowhere for us to store a strong reference), and uses
     // RLMArrayHolder rather than an NSArray because NSArray doesn't guarantee
-    // that it'll use a single contiugous block of memory, and if it doesn't
+    // that it'll use a single contiguous block of memory, and if it doesn't
     // we'd need to forward multiple calls to this method to the same NSArray,
     // which would require holding a reference to it somewhere.
     __autoreleasing RLMArrayHolder *copy = [[RLMArrayHolder alloc] init];
@@ -291,8 +295,10 @@ static void RLMValidateArrayBounds(__unsafe_unretained RLMArray *const ar,
 - (RLMResults *)objectsWhere:(NSString *)predicateFormat, ...
 {
     va_list args;
-    RLM_VARARG(predicateFormat, args);
-    return [self objectsWhere:predicateFormat args:args];
+    va_start(args, predicateFormat);
+    RLMResults *results = [self objectsWhere:predicateFormat args:args];
+    va_end(args);
+    return results;
 }
 
 - (RLMResults *)objectsWhere:(NSString *)predicateFormat args:(va_list)args
@@ -300,9 +306,28 @@ static void RLMValidateArrayBounds(__unsafe_unretained RLMArray *const ar,
     return [self objectsWithPredicate:[NSPredicate predicateWithFormat:predicateFormat arguments:args]];
 }
 
+- (id)valueForKeyPath:(NSString *)keyPath {
+    if (!_backingArray) {
+        return [super valueForKeyPath:keyPath];
+    }
+    // Although delegating to valueForKeyPath: here would allow to support
+    // nested key paths as well, limiting functionality gives consistency
+    // between unmanaged and managed arrays.
+    if ([keyPath characterAtIndex:0] == '@') {
+        NSRange operatorRange = [keyPath rangeOfString:@"." options:NSLiteralSearch];
+        if (operatorRange.location != NSNotFound) {
+            NSString *operatorKeyPath = [keyPath substringFromIndex:operatorRange.location + 1];
+            if ([operatorKeyPath rangeOfString:@"."].location != NSNotFound) {
+                @throw RLMException(@"Nested key paths are not supported yet for KVC collection operators.");
+            }
+        }
+    }
+    return [_backingArray valueForKeyPath:keyPath];
+}
+
 - (id)valueForKey:(NSString *)key {
     if ([key isEqualToString:RLMInvalidatedKey]) {
-        return @NO; // Standalone arrays are never invalidated
+        return @NO; // Unmanaged arrays are never invalidated
     }
     if (!_backingArray) {
         return @[];
@@ -336,15 +361,15 @@ static void RLMValidateArrayBounds(__unsafe_unretained RLMArray *const ar,
 }
 
 //
-// Methods unsupported on standalone RLMArray instances
+// Methods unsupported on unmanaged RLMArray instances
 //
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
 
 - (RLMResults *)objectsWithPredicate:(NSPredicate *)predicate
 {
-    @throw RLMException(@"This method can only be called on RLMArray instances retrieved from an RLMRealm");
+    @throw RLMException(@"This method may only be called on RLMArray instances retrieved from an RLMRealm");
 }
 
 - (RLMResults *)sortedResultsUsingProperty:(NSString *)property ascending:(BOOL)ascending
@@ -354,16 +379,26 @@ static void RLMValidateArrayBounds(__unsafe_unretained RLMArray *const ar,
 
 - (RLMResults *)sortedResultsUsingDescriptors:(NSArray *)properties
 {
-    @throw RLMException(@"This method can only be called on RLMArray instances retrieved from an RLMRealm");
+    @throw RLMException(@"This method may only be called on RLMArray instances retrieved from an RLMRealm");
 }
 
-#pragma GCC diagnostic pop
+// The compiler complains about the method's argument type not matching due to
+// it not having the generic type attached, but it doesn't seem to be possible
+// to actually include the generic type
+// http://www.openradar.me/radar?id=6135653276319744
+#pragma clang diagnostic ignored "-Wmismatched-parameter-types"
+- (RLMNotificationToken *)addNotificationBlock:(void (^)(RLMArray *, RLMCollectionChange *, NSError *))block {
+    @throw RLMException(@"This method may only be called on RLMArray instances retrieved from an RLMRealm");
+}
+#pragma clang diagnostic pop
 
 - (NSUInteger)indexOfObjectWhere:(NSString *)predicateFormat, ...
 {
     va_list args;
-    RLM_VARARG(predicateFormat, args);
-    return [self indexOfObjectWhere:predicateFormat args:args];
+    va_start(args, predicateFormat);
+    NSUInteger index = [self indexOfObjectWhere:predicateFormat args:args];
+    va_end(args);
+    return index;
 }
 
 - (NSUInteger)indexOfObjectWhere:(NSString *)predicateFormat args:(va_list)args
@@ -374,47 +409,13 @@ static void RLMValidateArrayBounds(__unsafe_unretained RLMArray *const ar,
 
 #pragma mark - Superclass Overrides
 
-- (NSString *)description
-{
+- (NSString *)description {
     return [self descriptionWithMaxDepth:RLMDescriptionMaxDepth];
 }
 
 - (NSString *)descriptionWithMaxDepth:(NSUInteger)depth {
-    if (depth == 0) {
-        return @"<Maximum depth exceeded>";
-    }
-
-    const NSUInteger maxObjects = 100;
-    NSMutableString *mString = [NSMutableString stringWithFormat:@"RLMArray <%p> (\n", self];
-    unsigned long index = 0, skipped = 0;
-    for (id obj in self) {
-        NSString *sub;
-        if ([obj respondsToSelector:@selector(descriptionWithMaxDepth:)]) {
-            sub = [obj descriptionWithMaxDepth:depth - 1];
-        }
-        else {
-            sub = [obj description];
-        }
-
-        // Indent child objects
-        NSString *objDescription = [sub stringByReplacingOccurrencesOfString:@"\n" withString:@"\n\t"];
-        [mString appendFormat:@"\t[%lu] %@,\n", index++, objDescription];
-        if (index >= maxObjects) {
-            skipped = self.count - maxObjects;
-            break;
-        }
-    }
-    
-    // Remove last comma and newline characters
-    if(self.count > 0)
-        [mString deleteCharactersInRange:NSMakeRange(mString.length-2, 2)];
-    if (skipped) {
-        [mString appendFormat:@"\n\t... %lu objects skipped.", skipped];
-    }
-    [mString appendFormat:@"\n)"];
-    return [NSString stringWithString:mString];
+    return RLMDescriptionWithMaxDepth(@"RLMArray", self, depth);
 }
-
 @end
 
 @interface RLMSortDescriptor ()

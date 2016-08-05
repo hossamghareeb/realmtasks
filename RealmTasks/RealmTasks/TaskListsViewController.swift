@@ -18,9 +18,6 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
     var currentCreateAction:UIAlertAction!
     @IBOutlet weak var taskListsTableView: UITableView!
     
-    override func viewDidLoad() {
-        super.viewDidLoad()
-    }
     
     override func viewWillAppear(animated: Bool) {
         readTasksAndUpdateUI()
@@ -31,11 +28,6 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
         lists = uiRealm.objects(TaskList)
         self.taskListsTableView.setEditing(false, animated: true)
         self.taskListsTableView.reloadData()
-    }
-
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
     }
     
     // MARK: - User Actions -
@@ -86,24 +78,22 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
             
             if updatedList != nil{
                 // update mode
-                uiRealm.write({ () -> Void in
+                try! uiRealm.write{
                     updatedList.name = listName!
                     self.readTasksAndUpdateUI()
-                })
+                }
             }
             else{
                 
                 let newTaskList = TaskList()
                 newTaskList.name = listName!
                 
-                uiRealm.write({ () -> Void in
+                try! uiRealm.write{
                     
                     uiRealm.add(newTaskList)
                     self.readTasksAndUpdateUI()
-                })
+                }
             }
-            
-            
             
             print(listName)
         }
@@ -116,7 +106,7 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
         
         alertController.addTextFieldWithConfigurationHandler { (textField) -> Void in
             textField.placeholder = "Task List Name"
-            textField.addTarget(self, action: "listNameFieldDidChange:", forControlEvents: UIControlEvents.EditingChanged)
+            textField.addTarget(self, action: #selector(TaskListsViewController.listNameFieldDidChange(_:)), forControlEvents: UIControlEvents.EditingChanged)
             if updatedList != nil{
                 textField.text = updatedList.name
             }
@@ -152,10 +142,11 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
             //Deletion will go here
             
             let listToBeDeleted = self.lists[indexPath.row]
-            uiRealm.write({ () -> Void in
+            try! uiRealm.write{
+                
                 uiRealm.delete(listToBeDeleted)
                 self.readTasksAndUpdateUI()
-            })
+            }
         }
         let editAction = UITableViewRowAction(style: UITableViewRowActionStyle.Normal, title: "Edit") { (editAction, indexPath) -> Void in
             
@@ -173,19 +164,12 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
         self.performSegueWithIdentifier("openTasks", sender: self.lists[indexPath.row])
     }
     
+    // MARK: - Navigation
+    
     override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
         
         let tasksViewController = segue.destinationViewController as! TasksViewController
         tasksViewController.selectedList = sender as! TaskList
     }
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
-        // Get the new view controller using segue.destinationViewController.
-        // Pass the selected object to the new view controller.
-    }
-    */
 
 }

@@ -28,6 +28,27 @@ internal func notFoundToNil(index: UInt) -> Int? {
     return Int(index)
 }
 
+#if swift(>=3.0)
+
+internal func throwRealmException(_ message: String, userInfo: [String:AnyObject] = [:]) {
+    NSException(name: NSExceptionName(rawValue: RLMExceptionName), reason: message, userInfo: userInfo).raise()
+}
+
+internal func throwForNegativeIndex(_ int: Int, parameterName: String = "index") {
+    if int < 0 {
+        throwRealmException("Cannot pass a negative value for '\(parameterName)'.")
+    }
+}
+
+internal func gsub(pattern: String, template: String, string: String, error: NSErrorPointer = nil) -> String? {
+    let regex = try? RegularExpression(pattern: pattern, options: [])
+    return regex?.stringByReplacingMatches(in: string, options: [],
+                                           range: NSRange(location: 0, length: string.utf16.count),
+                                           withTemplate: template)
+}
+
+#else
+
 internal func throwRealmException(message: String, userInfo: [String:AnyObject] = [:]) {
     NSException(name: RLMExceptionName, reason: message, userInfo: userInfo).raise()
 }
@@ -39,11 +60,10 @@ internal func throwForNegativeIndex(int: Int, parameterName: String = "index") {
 }
 
 internal func gsub(pattern: String, template: String, string: String, error: NSErrorPointer = nil) -> String? {
-    do {
-        let regex = try NSRegularExpression(pattern: pattern, options: [])
-        return regex.stringByReplacingMatchesInString(string, options: [], range: NSRange(location: 0, length: string.utf16.count), withTemplate: template)
-    } catch {
-        // no-op
-    }
-    return nil
+    let regex = try? NSRegularExpression(pattern: pattern, options: [])
+    return regex?.stringByReplacingMatchesInString(string, options: [],
+                                                   range: NSRange(location: 0, length: string.utf16.count),
+                                                   withTemplate: template)
 }
+
+#endif

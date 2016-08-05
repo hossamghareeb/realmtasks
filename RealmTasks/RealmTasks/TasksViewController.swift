@@ -27,7 +27,6 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
         readTasksAndUpateUI()
     }
     
-    
     // MARK: - User Actions -
     
     @IBAction func didClickOnEditTasks(sender: AnyObject) {
@@ -44,12 +43,6 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
         
         self.tasksTableView.reloadData()
     }
-
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
-    
     
     // MARK: - UITableViewDataSource -
     func numberOfSectionsInTableView(tableView: UITableView) -> Int {
@@ -100,24 +93,22 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
             
             if updatedTask != nil{
                 // update mode
-                uiRealm.write({ () -> Void in
+                try! uiRealm.write{
                     updatedTask.name = taskName!
                     self.readTasksAndUpateUI()
-                })
+                }
             }
             else{
                 
                 let newTask = Task()
                 newTask.name = taskName!
                 
-                uiRealm.write({ () -> Void in
+                try! uiRealm.write{
                     
                     self.selectedList.tasks.append(newTask)
                     self.readTasksAndUpateUI()
-                })
+                }
             }
-            
-            
             
             print(taskName)
         }
@@ -130,7 +121,7 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
         
         alertController.addTextFieldWithConfigurationHandler { (textField) -> Void in
             textField.placeholder = "Task Name"
-            textField.addTarget(self, action: "taskNameFieldDidChange:", forControlEvents: UIControlEvents.EditingChanged)
+            textField.addTarget(self, action: #selector(TasksViewController.taskNameFieldDidChange(_:)) , forControlEvents: UIControlEvents.EditingChanged)
             if updatedTask != nil{
                 textField.text = updatedTask.name
             }
@@ -158,10 +149,10 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
                 taskToBeDeleted = self.completedTasks[indexPath.row]
             }
             
-            uiRealm.write({ () -> Void in
+            try! uiRealm.write{
                 uiRealm.delete(taskToBeDeleted)
                 self.readTasksAndUpateUI()
-            })
+            }
         }
         let editAction = UITableViewRowAction(style: UITableViewRowActionStyle.Normal, title: "Edit") { (editAction, indexPath) -> Void in
             
@@ -187,23 +178,14 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
             else{
                 taskToBeUpdated = self.completedTasks[indexPath.row]
             }
-            uiRealm.write({ () -> Void in
+            try! uiRealm.write{
                 taskToBeUpdated.isCompleted = true
                 self.readTasksAndUpateUI()
-            })
+            }
             
         }
         return [deleteAction, editAction, doneAction]
     }
 
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
-        // Get the new view controller using segue.destinationViewController.
-        // Pass the selected object to the new view controller.
-    }
-    */
 
 }

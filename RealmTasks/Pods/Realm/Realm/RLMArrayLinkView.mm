@@ -28,6 +28,9 @@
 #import "RLMSchema.h"
 #import "RLMUtil.hpp"
 
+#import "list.hpp"
+#import "results.hpp"
+
 #import <realm/table_view.hpp>
 #import <objc/runtime.h>
 
@@ -36,7 +39,7 @@
 //
 @implementation RLMArrayLinkView {
 @public
-    realm::LinkViewRef _backingLinkView;
+    realm::List _backingList;
     RLMRealm *_realm;
     __unsafe_unretained RLMObjectSchema *_containingObjectSchema;
     std::unique_ptr<RLMObservationInfo> _observationInfo;
@@ -48,7 +51,7 @@
                                            key:(NSString *)key
                                   parentSchema:(RLMObjectSchema *)parentSchema {
     RLMArrayLinkView *ar = [[RLMArrayLinkView alloc] initWithObjectClassName:objectClassName];
-    ar->_backingLinkView = view;
+    ar->_backingList = realm::List(realm->_realm, view);
     ar->_realm = realm;
     ar->_objectSchema = ar->_realm.schema[objectClassName];
     ar->_containingObjectSchema = parentSchema;
@@ -59,9 +62,8 @@
 void RLMValidateArrayObservationKey(__unsafe_unretained NSString *const keyPath,
                                     __unsafe_unretained RLMArray *const array) {
     if (![keyPath isEqualToString:RLMInvalidatedKey]) {
-        NSString *err = [NSString stringWithFormat:@"[<%@ %p> addObserver:forKeyPath:options:context:] is not supported. Key path: %@",
-                         [array class], array, keyPath];
-        @throw RLMException(err);
+        @throw RLMException(@"[<%@ %p> addObserver:forKeyPath:options:context:] is not supported. Key path: %@",
+                            [array class], array, keyPath);
     }
 }
 
@@ -73,7 +75,7 @@ void RLMEnsureArrayObservationInfo(std::unique_ptr<RLMObservationInfo>& info,
     if (!info && array.class == [RLMArrayLinkView class]) {
         RLMArrayLinkView *lv = static_cast<RLMArrayLinkView *>(array);
         info = std::make_unique<RLMObservationInfo>(lv->_containingObjectSchema,
-                                                    lv->_backingLinkView->get_origin_row_index(),
+                                                    lv->_backingList.get_origin_row_index(),
                                                     observed);
     }
 }
@@ -81,44 +83,78 @@ void RLMEnsureArrayObservationInfo(std::unique_ptr<RLMObservationInfo>& info,
 //
 // validation helpers
 //
-static inline void RLMLinkViewArrayValidateAttached(__unsafe_unretained RLMArrayLinkView *const ar) {
-    if (!ar->_backingLinkView->is_attached()) {
-        @throw RLMException(@"RLMArray is no longer valid");
+[[gnu::noinline]]
+[[noreturn]]
+static void throwError() {
+    try {
+        throw;
     }
-    RLMCheckThread(ar->_realm);
+    catch (realm::InvalidTransactionException const&) {
+        @throw RLMException(@"Cannot modify managed RLMArray outside of a write transaction");
+    }
+    catch (realm::IncorrectThreadException const&) {
+        @throw RLMException(@"Realm accessed from incorrect thread");
+    }
+    catch (realm::List::InvalidatedException const&) {
+        @throw RLMException(@"RLMArray has been invalidated or the containing object has been deleted");
+    }
+    catch (realm::List::OutOfBoundsIndexException const& e) {
+        @throw RLMException(@"Index %zu is out of bounds (must be less than %zu)",
+                            e.requested, e.valid_count);
+    }
 }
-static inline void RLMLinkViewArrayValidateInWriteTransaction(__unsafe_unretained RLMArrayLinkView *const ar) {
-    // first verify attached
-    RLMLinkViewArrayValidateAttached(ar);
 
-    if (!ar->_realm->_inWriteTransaction) {
-        @throw RLMException(@"Can't mutate a persisted array outside of a write transaction.");
+template<typename Function>
+static auto translateErrors(Function&& f) {
+    try {
+        return f();
+    }
+    catch (...) {
+        throwError();
     }
 }
-static inline void RLMValidateObjectClass(__unsafe_unretained RLMObjectBase *const obj, __unsafe_unretained NSString *const expected) {
+
+static void validateObjectToAdd(__unsafe_unretained RLMArrayLinkView *const ar,
+                                __unsafe_unretained RLMObject *const obj) {
     if (!obj) {
-        @throw RLMException(@"Object is `nil`", @{@"expected class" : expected});
+        @throw RLMException(@"Cannot add `nil` to RLMArray<%@>", ar->_objectClassName);
     }
 
     NSString *objectClassName = obj->_objectSchema.className;
-    if (![objectClassName isEqualToString:expected]) {
-        @throw RLMException(@"Object type is incorrect.", @{@"expected class" : expected, @"actual class" : objectClassName});
+    if (![objectClassName isEqualToString:ar->_objectClassName]) {
+        @throw RLMException(@"Cannot add object of type '%@' to RLMArray<%@>",
+                            objectClassName, ar->_objectClassName);
+    }
+
+    if (obj->_realm != ar.realm) {
+        [ar.realm addObject:obj];
+    }
+    else if (obj->_realm && !obj->_row.is_attached()) {
+        @throw RLMException(@"Object has been deleted or invalidated.");
     }
 }
 
 template<typename IndexSetFactory>
-static void changeArray(__unsafe_unretained RLMArrayLinkView *const ar, NSKeyValueChange kind, dispatch_block_t f, IndexSetFactory&& is) {
+static void changeArray(__unsafe_unretained RLMArrayLinkView *const ar,
+                        NSKeyValueChange kind, dispatch_block_t f, IndexSetFactory&& is) {
+    translateErrors([&] { ar->_backingList.verify_in_transaction(); });
     RLMObservationInfo *info = RLMGetObservationInfo(ar->_observationInfo.get(),
-                                                     ar->_backingLinkView->get_origin_row_index(),
+                                                     ar->_backingList.get_origin_row_index(),
                                                      ar->_containingObjectSchema);
     if (info) {
         NSIndexSet *indexes = is();
         info->willChange(ar->_key, kind, indexes);
-        f();
+        try {
+            f();
+        }
+        catch (...) {
+            info->didChange(ar->_key, kind, indexes);
+            throwError();
+        }
         info->didChange(ar->_key, kind, indexes);
     }
     else {
-        f();
+        translateErrors([&] { f(); });
     }
 }
 
@@ -142,25 +178,22 @@ static void changeArray(__unsafe_unretained RLMArrayLinkView *const ar, NSKeyVal
 }
 
 - (NSUInteger)count {
-    RLMLinkViewArrayValidateAttached(self);
-    return _backingLinkView->size();
+    return translateErrors([&] { return _backingList.size(); });
 }
 
 - (BOOL)isInvalidated {
-    return !_backingLinkView->is_attached();
+    return translateErrors([&] { return !_backingList.is_valid(); });
 }
 
-// These two methods take advantage of that LinkViews are interned, so there's
-// only ever at most one LinkView object per SharedGroup for a given row+col.
 - (BOOL)isEqual:(id)object {
     if (RLMArrayLinkView *linkView = RLMDynamicCast<RLMArrayLinkView>(object)) {
-        return linkView->_backingLinkView.get() == _backingLinkView.get();
+        return linkView->_backingList == _backingList;
     }
     return NO;
 }
 
 - (NSUInteger)hash {
-    return reinterpret_cast<NSUInteger>(_backingLinkView.get());
+    return std::hash<realm::List>()(_backingList);
 }
 
 - (NSUInteger)countByEnumeratingWithState:(NSFastEnumerationState *)state
@@ -168,7 +201,7 @@ static void changeArray(__unsafe_unretained RLMArrayLinkView *const ar, NSKeyVal
                                     count:(NSUInteger)len {
     __autoreleasing RLMFastEnumerator *enumerator;
     if (state->state == 0) {
-        RLMLinkViewArrayValidateAttached(self);
+        translateErrors([&] { _backingList.verify_attached(); });
 
         enumerator = [[RLMFastEnumerator alloc] initWithCollection:self objectSchema:_objectSchema];
         state->extra[0] = (long)enumerator;
@@ -181,41 +214,19 @@ static void changeArray(__unsafe_unretained RLMArrayLinkView *const ar, NSKeyVal
     return [enumerator countByEnumeratingWithState:state count:len];
 }
 
-static void RLMValidateArrayBounds(__unsafe_unretained RLMArrayLinkView *const ar,
-                                   NSUInteger index, bool allowOnePastEnd=false) {
-    NSUInteger max = ar->_backingLinkView->size() + allowOnePastEnd;
-    if (index >= max) {
-        @throw RLMException([NSString stringWithFormat:@"Index %llu is out of bounds (must be less than %llu).",
-                             (unsigned long long)index, (unsigned long long)max]);
-    }
-}
-
 - (id)objectAtIndex:(NSUInteger)index {
-    RLMLinkViewArrayValidateAttached(self);
-    RLMValidateArrayBounds(self, index);
-    return RLMCreateObjectAccessor(_realm, _objectSchema, _backingLinkView->get(index).get_index());
+    return RLMCreateObjectAccessor(_realm, _objectSchema,
+                                   translateErrors([&] { return _backingList.get(index).get_index(); }));
 }
 
 static void RLMInsertObject(RLMArrayLinkView *ar, RLMObject *object, NSUInteger index) {
-    RLMLinkViewArrayValidateInWriteTransaction(ar);
-    RLMValidateObjectClass(object, ar.objectClassName);
-
     if (index == NSUIntegerMax) {
-        index = ar->_backingLinkView->size();
-    }
-    else {
-        RLMValidateArrayBounds(ar, index, true);
+        index = translateErrors([&] { return ar->_backingList.size(); });
     }
 
-    if (object->_realm != ar.realm) {
-        [ar.realm addObject:object];
-    }
-    else if (object->_realm) {
-        RLMVerifyAttached(object);
-    }
-
+    validateObjectToAdd(ar, object);
     changeArray(ar, NSKeyValueChangeInsertion, index, ^{
-        ar->_backingLinkView->insert(index, object->_row.get_index());
+        ar->_backingList.insert(index, object->_row.get_index());
     });
 }
 
@@ -228,21 +239,11 @@ static void RLMInsertObject(RLMArrayLinkView *ar, RLMObject *object, NSUInteger 
 }
 
 - (void)insertObjects:(id<NSFastEnumeration>)objects atIndexes:(NSIndexSet *)indexes {
-    RLMLinkViewArrayValidateInWriteTransaction(self);
-
     changeArray(self, NSKeyValueChangeInsertion, indexes, ^{
         NSUInteger index = [indexes firstIndex];
         for (RLMObject *obj in objects) {
-            if (index > _backingLinkView->size()) {
-                @throw RLMException(@"Trying to insert object at invalid index");
-            }
-            if (obj->_realm != _realm) {
-                [_realm addObject:obj];
-            }
-            else {
-                RLMVerifyAttached(obj);
-            }
-            _backingLinkView->insert(index, obj->_row.get_index());
+            validateObjectToAdd(self, obj);
+            _backingList.insert(index, obj->_row.get_index());
             index = [indexes indexGreaterThanIndex:index];
         }
     });
@@ -250,82 +251,52 @@ static void RLMInsertObject(RLMArrayLinkView *ar, RLMObject *object, NSUInteger 
 
 
 - (void)removeObjectAtIndex:(NSUInteger)index {
-    RLMLinkViewArrayValidateInWriteTransaction(self);
-    RLMValidateArrayBounds(self, index);
     changeArray(self, NSKeyValueChangeRemoval, index, ^{
-        _backingLinkView->remove(index);
+        _backingList.remove(index);
     });
 }
 
 - (void)removeObjectsAtIndexes:(NSIndexSet *)indexes {
-    RLMLinkViewArrayValidateInWriteTransaction(self);
-
     changeArray(self, NSKeyValueChangeRemoval, indexes, ^{
-        for (NSUInteger index = [indexes lastIndex]; index != NSNotFound; index = [indexes indexLessThanIndex:index]) {
-            if (index >= _backingLinkView->size()) {
-                @throw RLMException(@"Trying to remove object at invalid index");
-            }
-            _backingLinkView->remove(index);
-        }
+        [indexes enumerateIndexesWithOptions:NSEnumerationReverse usingBlock:^(NSUInteger idx, BOOL *) {
+            _backingList.remove(idx);
+        }];
     });
 }
 
 - (void)addObjectsFromArray:(NSArray *)array {
-    RLMLinkViewArrayValidateInWriteTransaction(self);
-
-    changeArray(self, NSKeyValueChangeInsertion, NSMakeRange(_backingLinkView->size(), array.count), ^{
+    changeArray(self, NSKeyValueChangeInsertion, NSMakeRange(self.count, array.count), ^{
         for (RLMObject *obj in array) {
-            RLMValidateObjectClass(obj, _objectClassName);
-            if (obj->_realm != _realm) {
-                [_realm addObject:obj];
-            }
-
-            _backingLinkView->add(obj->_row.get_index());
+            validateObjectToAdd(self, obj);
+            _backingList.add(obj->_row.get_index());
         }
     });
 }
 
 - (void)removeAllObjects {
-    RLMLinkViewArrayValidateInWriteTransaction(self);
-
-    changeArray(self, NSKeyValueChangeRemoval, NSMakeRange(0, _backingLinkView->size()), ^{
-        _backingLinkView->clear();
+    changeArray(self, NSKeyValueChangeRemoval, NSMakeRange(0, self.count), ^{
+        _backingList.remove_all();
     });
 }
 
 - (void)replaceObjectAtIndex:(NSUInteger)index withObject:(RLMObject *)object {
-    RLMLinkViewArrayValidateInWriteTransaction(self);
-    RLMValidateObjectClass(object, self.objectClassName);
-    RLMValidateArrayBounds(self, index);
-
-    if (object->_realm != self.realm) {
-        [self.realm addObject:object];
-    }
-
+    validateObjectToAdd(self, object);
     changeArray(self, NSKeyValueChangeReplacement, index, ^{
-        _backingLinkView->set(index, object->_row.get_index());
+        _backingList.set(index, object->_row.get_index());
     });
 }
 
 - (void)moveObjectAtIndex:(NSUInteger)sourceIndex toIndex:(NSUInteger)destinationIndex {
-    RLMLinkViewArrayValidateInWriteTransaction(self);
-    RLMValidateArrayBounds(self, sourceIndex);
-    RLMValidateArrayBounds(self, destinationIndex);
-
     auto start = std::min(sourceIndex, destinationIndex);
     auto len = std::max(sourceIndex, destinationIndex) - start + 1;
     changeArray(self, NSKeyValueChangeReplacement, {start, len}, ^{
-        _backingLinkView->move(sourceIndex, destinationIndex);
+        _backingList.move(sourceIndex, destinationIndex);
     });
 }
 
 - (void)exchangeObjectAtIndex:(NSUInteger)index1 withObjectAtIndex:(NSUInteger)index2 {
-    RLMLinkViewArrayValidateInWriteTransaction(self);
-    RLMValidateArrayBounds(self, index1);
-    RLMValidateArrayBounds(self, index2);
-
     changeArray(self, NSKeyValueChangeReplacement, ^{
-        _backingLinkView->swap(index1, index2);
+        _backingList.swap(index1, index2);
     }, [=] {
         NSMutableIndexSet *set = [[NSMutableIndexSet alloc] initWithIndex:index1];
         [set addIndex:index2];
@@ -334,27 +305,28 @@ static void RLMInsertObject(RLMArrayLinkView *ar, RLMObject *object, NSUInteger 
 }
 
 - (NSUInteger)indexOfObject:(RLMObject *)object {
-    // check attached for table and object
-    RLMLinkViewArrayValidateAttached(self);
-
-    if (object->_realm && !object->_row.is_attached()) {
-        @throw RLMException(@"RLMObject is no longer valid");
+    if (object.invalidated) {
+        @throw RLMException(@"Object has been deleted or invalidated");
     }
 
     // check that object types align
     if (![_objectClassName isEqualToString:object->_objectSchema.className]) {
-        @throw RLMException([NSString stringWithFormat:@"Object of type (%@) does not match RLMArray type (%@)",
-                             object->_objectSchema.className, _objectClassName]);
+        @throw RLMException(@"Object of type (%@) does not match RLMArray type (%@)",
+                            object->_objectSchema.className, _objectClassName);
     }
 
-    // if different tables then no match
-    if (object->_row.get_table() != &_backingLinkView->get_target_table()) {
-        return NSNotFound;
-    }
+    return translateErrors([&] { return RLMConvertNotFound(_backingList.find(object->_row)); });
+}
 
-    // call find on backing array
-    size_t object_ndx = object->_row.get_index();
-    return RLMConvertNotFound(_backingLinkView->find(object_ndx));
+- (id)valueForKeyPath:(NSString *)keyPath {
+    if ([keyPath hasPrefix:@"@"]) {
+        // Delegate KVC collection operators to RLMResults
+        auto query = translateErrors([&] { return _backingList.get_query(); });
+        RLMResults *results = [RLMResults resultsWithObjectSchema:_objectSchema
+                                                          results:realm::Results(_realm->_realm, std::move(query))];
+        return [results valueForKeyPath:keyPath];
+    }
+    return [super valueForKeyPath:keyPath];
 }
 
 - (id)valueForKey:(NSString *)key {
@@ -365,53 +337,40 @@ static void RLMInsertObject(RLMArrayLinkView *ar, RLMObject *object, NSUInteger 
     // the entire key path), and an RLMArrayLinkView *can't* have objects where
     // invalidated is true, so we're not losing much.
     if ([key isEqualToString:RLMInvalidatedKey]) {
-        return @(!_backingLinkView->is_attached());
+        return @(!_backingList.is_valid());
     }
 
-    RLMLinkViewArrayValidateAttached(self);
+    translateErrors([&] { _backingList.verify_attached(); });
     return RLMCollectionValueForKey(self, key);
 }
 
 - (void)setValue:(id)value forKey:(NSString *)key {
-    RLMLinkViewArrayValidateInWriteTransaction(self);
+    translateErrors([&] { _backingList.verify_in_transaction(); });
     RLMCollectionSetValueForKey(self, key, value);
 }
 
 - (void)deleteObjectsFromRealm {
-    RLMLinkViewArrayValidateInWriteTransaction(self);
-
     // delete all target rows from the realm
     RLMTrackDeletions(_realm, ^{
-        _backingLinkView->remove_all_target_rows();
+        translateErrors([&] { _backingList.delete_all(); });
     });
 }
 
 - (RLMResults *)sortedResultsUsingDescriptors:(NSArray *)properties {
-    RLMLinkViewArrayValidateAttached(self);
-
-    auto query = std::make_unique<realm::Query>(_backingLinkView->get_target_table().where(_backingLinkView));
-    return [RLMResults resultsWithObjectClassName:self.objectClassName
-                                            query:move(query)
-                                             sort:RLMSortOrderFromDescriptors(_realm.schema[_objectClassName], properties)
-                                            realm:_realm];
-
+    auto order = RLMSortOrderFromDescriptors(*_objectSchema.table, properties);
+    auto results = translateErrors([&] { return _backingList.sort(std::move(order)); });
+    return [RLMResults resultsWithObjectSchema:_objectSchema results:std::move(results)];
 }
 
 - (RLMResults *)objectsWithPredicate:(NSPredicate *)predicate {
-    RLMLinkViewArrayValidateAttached(self);
-
-    realm::Query query = _backingLinkView->get_target_table().where(_backingLinkView);
-    RLMUpdateQueryWithPredicate(&query, predicate, _realm.schema, _realm.schema[self.objectClassName]);
-    return [RLMResults resultsWithObjectClassName:self.objectClassName
-                                            query:std::make_unique<realm::Query>(query)
-                                            realm:_realm];
+    auto query = RLMPredicateToQuery(predicate, _objectSchema, _realm.schema, *_realm.group);
+    auto results = translateErrors([&] { return _backingList.filter(std::move(query)); });
+    return [RLMResults resultsWithObjectSchema:_objectSchema results:std::move(results)];
 }
 
 - (NSUInteger)indexOfObjectWithPredicate:(NSPredicate *)predicate {
-    RLMLinkViewArrayValidateAttached(self);
-
-    realm::Query query = _backingLinkView->get_target_table().where(_backingLinkView);
-    RLMUpdateQueryWithPredicate(&query, predicate, _realm.schema, _realm.schema[self.objectClassName]);
+    auto query = translateErrors([&] { return _backingList.get_query(); });
+    query.and_query(RLMPredicateToQuery(predicate, _objectSchema, _realm.schema, *_realm.group));
     return RLMConvertNotFound(query.find());
 }
 
@@ -430,11 +389,23 @@ static void RLMInsertObject(RLMArrayLinkView *ar, RLMObject *object, NSUInteger 
 }
 
 - (NSUInteger)indexInSource:(NSUInteger)index {
-    return _backingLinkView->get(index).get_index();
+    return _backingList.get_unchecked(index);
 }
 
 - (realm::TableView)tableView {
-    return _backingLinkView->get_target_table().where(_backingLinkView).find_all();
+    return translateErrors([&] { return _backingList.get_query(); }).find_all();
 }
+
+// The compiler complains about the method's argument type not matching due to
+// it not having the generic type attached, but it doesn't seem to be possible
+// to actually include the generic type
+// http://www.openradar.me/radar?id=6135653276319744
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmismatched-parameter-types"
+- (RLMNotificationToken *)addNotificationBlock:(void (^)(RLMArray *, RLMCollectionChange *, NSError *))block {
+    [_realm verifyNotificationsAreSupported];
+    return RLMAddNotificationBlock(self, _backingList, block);
+}
+#pragma clang diagnostic pop
 
 @end

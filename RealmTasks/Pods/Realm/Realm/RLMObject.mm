@@ -35,9 +35,22 @@
 // synthesized in RLMObjectBase
 @dynamic invalidated, realm, objectSchema;
 
+#pragma mark - Designated Initializers
+
 - (instancetype)init {
     return [super init];
 }
+
+- (instancetype)initWithValue:(id)value schema:(RLMSchema *)schema {
+    return [super initWithValue:value schema:schema];
+}
+
+- (instancetype)initWithRealm:(__unsafe_unretained RLMRealm *const)realm
+                       schema:(__unsafe_unretained RLMObjectSchema *const)schema {
+    return [super initWithRealm:realm schema:schema];
+}
+
+#pragma mark - Convenience Initializers
 
 - (instancetype)initWithValue:(id)value {
     [self.class sharedSchema]; // ensure this class' objectSchema is loaded in the partialSharedSchema
@@ -45,32 +58,18 @@
     return [super initWithValue:value schema:schema];
 }
 
-- (instancetype)initWithObject:(id)object {
-    return [self initWithValue:object];
-}
+#pragma mark - Class-based Object Creation
 
 + (instancetype)createInDefaultRealmWithValue:(id)value {
     return (RLMObject *)RLMCreateObjectInRealmWithValue([RLMRealm defaultRealm], [self className], value, false);
-}
-
-+ (instancetype)createInDefaultRealmWithObject:(id)object {
-    return [self createInDefaultRealmWithValue:object];
 }
 
 + (instancetype)createInRealm:(RLMRealm *)realm withValue:(id)value {
     return (RLMObject *)RLMCreateObjectInRealmWithValue(realm, [self className], value, false);
 }
 
-+ (instancetype)createInRealm:(RLMRealm *)realm withObject:(id)object {
-    return [self createInRealm:realm withValue:object];
-}
-
 + (instancetype)createOrUpdateInDefaultRealmWithValue:(id)value {
     return [self createOrUpdateInRealm:[RLMRealm defaultRealm] withValue:value];
-}
-
-+ (instancetype)createOrUpdateInDefaultRealmWithObject:(id)object {
-    return [self createOrUpdateInDefaultRealmWithValue:object];
 }
 
 + (instancetype)createOrUpdateInRealm:(RLMRealm *)realm withValue:(id)value {
@@ -83,9 +82,7 @@
     return (RLMObject *)RLMCreateObjectInRealmWithValue(realm, [self className], value, true);
 }
 
-+ (instancetype)createOrUpdateInRealm:(RLMRealm *)realm withObject:(id)object {
-    return [self createOrUpdateInRealm:realm withValue:object];
-}
+#pragma mark - Subscripting
 
 - (id)objectForKeyedSubscript:(NSString *)key {
     return RLMObjectBaseObjectForKeyedSubscript(self, key);
@@ -94,6 +91,8 @@
 - (void)setObject:(id)obj forKeyedSubscript:(NSString *)key {
     RLMObjectBaseSetObjectForKeyedSubscript(self, key, obj);
 }
+
+#pragma mark - Getting & Querying
 
 + (RLMResults *)allObjects {
     return RLMGetObjects(RLMRealm.defaultRealm, self.className, nil);
@@ -105,8 +104,10 @@
 
 + (RLMResults *)objectsWhere:(NSString *)predicateFormat, ... {
     va_list args;
-    RLM_VARARG(predicateFormat, args);
-    return [self objectsWhere:predicateFormat args:args];
+    va_start(args, predicateFormat);
+    RLMResults *results = [self objectsWhere:predicateFormat args:args];
+    va_end(args);
+    return results;
 }
 
 + (RLMResults *)objectsWhere:(NSString *)predicateFormat args:(va_list)args {
@@ -115,8 +116,10 @@
 
 + (RLMResults *)objectsInRealm:(RLMRealm *)realm where:(NSString *)predicateFormat, ... {
     va_list args;
-    RLM_VARARG(predicateFormat, args);
-    return [self objectsInRealm:realm where:predicateFormat args:args];
+    va_start(args, predicateFormat);
+    RLMResults *results = [self objectsInRealm:realm where:predicateFormat args:args];
+    va_end(args);
+    return results;
 }
 
 + (RLMResults *)objectsInRealm:(RLMRealm *)realm where:(NSString *)predicateFormat args:(va_list)args {
@@ -139,9 +142,7 @@
     return RLMGetObject(realm, self.className, primaryKey);
 }
 
-- (NSArray *)linkingObjectsOfClass:(NSString *)className forProperty:(NSString *)property {
-    return RLMObjectBaseLinkingObjectsOfClass(self, className, property);
-}
+#pragma mark - Other Instance Methods
 
 - (BOOL)isEqualToObject:(RLMObject *)object {
     return [object isKindOfClass:RLMObject.class] && RLMObjectBaseAreEqual(self, object);
@@ -151,8 +152,14 @@
     return [super className];
 }
 
+#pragma mark - Default values for schema definition
+
 + (NSArray *)indexedProperties {
     return @[];
+}
+
++ (NSDictionary *)linkingObjectsProperties {
+    return @{};
 }
 
 + (NSDictionary *)defaultPropertyValues {
@@ -168,7 +175,7 @@
 }
 
 + (NSArray *)requiredProperties {
-    return nil;
+    return @[];
 }
 
 @end
@@ -185,6 +192,34 @@
 
 - (void)setValue:(id)value forUndefinedKey:(NSString *)key {
     RLMDynamicValidatedSet(self, key, value);
+}
+
+@end
+
+@implementation RLMWeakObjectHandle {
+    realm::Row _row;
+    RLMRealm *_realm;
+    RLMObjectSchema *_objectSchema;
+    Class _objectClass;
+}
+
+- (instancetype)initWithObject:(RLMObjectBase *)object {
+    if (!(self = [super init])) {
+        return nil;
+    }
+
+    _row = object->_row;
+    _realm = object->_realm;
+    _objectSchema = object->_objectSchema;
+    _objectClass = object.class;
+
+    return self;
+}
+
+- (RLMObjectBase *)object {
+    RLMObjectBase *object = [[_objectClass alloc] initWithRealm:_realm schema:_objectSchema];
+    object->_row = std::move(_row);
+    return object;
 }
 
 @end

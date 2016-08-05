@@ -19,13 +19,15 @@
 import Foundation
 import Realm
 
-/**
-This class represents Realm model object schemas persisted to Realm in a Schema.
+#if swift(>=3.0)
 
-When using Realm, ObjectSchema objects allow performing migrations and
+/**
+This class represents Realm model object schemas.
+
+When using Realm, `ObjectSchema` objects allow performing migrations and
 introspecting the database's schema.
 
-Object schemas map to tables in the core database.
+`ObjectSchema`s map to tables in the core database.
 */
 public final class ObjectSchema: CustomStringConvertible {
 
@@ -35,7 +37,7 @@ public final class ObjectSchema: CustomStringConvertible {
 
     /// Array of persisted `Property` objects for an object.
     public var properties: [Property] {
-        return (rlmObjectSchema.properties as! [RLMProperty]).map { Property($0) }
+        return rlmObjectSchema.properties.map { Property($0) }
     }
 
     /// The name of the class this schema describes.
@@ -62,6 +64,71 @@ public final class ObjectSchema: CustomStringConvertible {
 
     /// Returns the property with the given name, if it exists.
     public subscript(propertyName: String) -> Property? {
+        if let rlmProperty = rlmObjectSchema[propertyName as NSString] {
+            return Property(rlmProperty)
+        }
+        return nil
+    }
+}
+
+// MARK: Equatable
+
+extension ObjectSchema: Equatable {}
+
+/// Returns whether the two object schemas are equal.
+public func == (lhs: ObjectSchema, rhs: ObjectSchema) -> Bool { // swiftlint:disable:this valid_docs
+    return lhs.rlmObjectSchema.isEqual(to: rhs.rlmObjectSchema)
+}
+
+#else
+
+/**
+ This class represents Realm model object schemas.
+
+ When using Realm, `ObjectSchema` instances allow performing migrations and
+ introspecting the database's schema.
+
+ Object schemas map to tables in the core database.
+*/
+public final class ObjectSchema: CustomStringConvertible {
+
+    // MARK: Properties
+
+    internal let rlmObjectSchema: RLMObjectSchema
+
+    /**
+     An array of `Property` instances representing the managed properties of a class described by the schema.
+
+     - see: `Property`
+     */
+    public var properties: [Property] {
+        return rlmObjectSchema.properties.map { Property($0) }
+    }
+
+    /// The name of the class the schema describes.
+    public var className: String { return rlmObjectSchema.className }
+
+    /// The property which serves as the primary key for the class the schema describes, if any.
+    public var primaryKeyProperty: Property? {
+        if let rlmProperty = rlmObjectSchema.primaryKeyProperty {
+            return Property(rlmProperty)
+        }
+        return nil
+    }
+
+    /// Returns a human-readable description of the properties contained in the object schema.
+    public var description: String { return rlmObjectSchema.description }
+
+    // MARK: Initializers
+
+    internal init(_ rlmObjectSchema: RLMObjectSchema) {
+        self.rlmObjectSchema = rlmObjectSchema
+    }
+
+    // MARK: Property Retrieval
+
+    /// Returns the property with the given name, if it exists.
+    public subscript(propertyName: String) -> Property? {
         if let rlmProperty = rlmObjectSchema[propertyName] {
             return Property(rlmProperty)
         }
@@ -74,6 +141,8 @@ public final class ObjectSchema: CustomStringConvertible {
 extension ObjectSchema: Equatable {}
 
 /// Returns whether the two object schemas are equal.
-public func ==(lhs: ObjectSchema, rhs: ObjectSchema) -> Bool {
+public func == (lhs: ObjectSchema, rhs: ObjectSchema) -> Bool { // swiftlint:disable:this valid_docs
     return lhs.rlmObjectSchema.isEqualToObjectSchema(rhs.rlmObjectSchema)
 }
+
+#endif
