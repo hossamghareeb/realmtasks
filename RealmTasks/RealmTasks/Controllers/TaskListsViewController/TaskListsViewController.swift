@@ -16,6 +16,9 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
     var isEditingMode = false
     
     var currentCreateAction:UIAlertAction!
+    
+    let viewModel: TasksListViewModelProtocol = TasksListViewModel()
+    
     @IBOutlet weak var taskListsTableView: UITableView!
     
     
