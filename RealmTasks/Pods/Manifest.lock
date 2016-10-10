@@ -1,4 +1,5 @@
 PODS:
+  - KVOController (1.1.0)
   - Realm (1.0.2):
     - Realm/Headers (= 1.0.2)
   - Realm/Headers (1.0.2)
@@ -6,12 +7,14 @@ PODS:
     - Realm (= 1.0.2)
 
 DEPENDENCIES:
+  - KVOController
   - RealmSwift
 
 SPEC CHECKSUMS:
+  KVOController: 321b5fc59300fcaabd42c0f679baa7a27efbb2fd
   Realm: 9d5c46a4d7d27958530a8dfc58f63a99e5c2cba3
   RealmSwift: 82f3ac5e24530143dddfde2033acc0d308f27d96
 
-PODFILE CHECKSUM: 38ed642b1f41160e6d1566a81f308349985287ce
+PODFILE CHECKSUM: 5ec775f0bdbe78a8873b84c51c461caeca9d5651
 
 COCOAPODS: 1.0.1

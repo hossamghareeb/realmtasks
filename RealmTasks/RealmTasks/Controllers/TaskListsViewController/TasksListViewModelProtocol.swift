@@ -14,19 +14,32 @@ enum TasksListSortCriteria {
 }
 
 protocol TasksListViewModelProtocol{
-
-    var tasksList: [TaskList] {get}
     
     var newListName: String {set get}
     
     var newListNameIsValid: Bool {get}
     
-    var listToBeUpdated: TaskList? {get}
+    var isEditingMode: Bool {get set}
+    
+    var listsCount: Int {get}
+    
+    func toggleEditMode()
+    
+    func listAtIndex(index: Int) -> TaskList?
     
     func loadTaskLists()
     func sortBy(sortCriteria: TasksListSortCriteria)
+    func listNameAtIndex(index: Int) -> String
+    func listDetailsTextAtIndex(index: Int) -> String
+    func deleteListAtIndex(index: Int)
+    func startUpdateListAtIndex(index: Int)
+    func didFinishAddingOrUpdatingList()
     
     var popupNewOrEditListTitleString: String {get}
     var popupNewOrEditListDoneString: String {get}
+    var popupNewOrEditListCancelString: String {get}
     var popupNewOrEditListMessageString: String {get}
+    var popupNewOrEditListFieldPlaceholderString: String {get}
+    var deleteListTitle: String {get}
+    var editListTitle: String {get}
 }

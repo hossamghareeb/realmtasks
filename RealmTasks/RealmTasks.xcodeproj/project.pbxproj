@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0641E9EA1DABA92F0072176F /* TasksViewModelProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0641E9E91DABA92F0072176F /* TasksViewModelProtocol.swift */; };
+		0641E9EC1DABA9600072176F /* TasksViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0641E9EB1DABA9600072176F /* TasksViewModel.swift */; };
 		06FD342D1DA64AE60030D24D /* TaskListsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06FD342C1DA64AE60030D24D /* TaskListsViewController.swift */; };
 		06FD34301DA67BFE0030D24D /* TasksViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06FD342F1DA67BFE0030D24D /* TasksViewController.swift */; };
 		06FD34321DA6826B0030D24D /* TasksListViewModelProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06FD34311DA6826B0030D24D /* TasksListViewModelProtocol.swift */; };
@@ -21,6 +23,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0641E9E91DABA92F0072176F /* TasksViewModelProtocol.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TasksViewModelProtocol.swift; sourceTree = "<group>"; };
+		0641E9EB1DABA9600072176F /* TasksViewModel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TasksViewModel.swift; sourceTree = "<group>"; };
 		06FD342C1DA64AE60030D24D /* TaskListsViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TaskListsViewController.swift; sourceTree = "<group>"; };
 		06FD342F1DA67BFE0030D24D /* TasksViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TasksViewController.swift; sourceTree = "<group>"; };
 		06FD34311DA6826B0030D24D /* TasksListViewModelProtocol.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TasksListViewModelProtocol.swift; sourceTree = "<group>"; };
@@ -80,6 +84,8 @@
 		06FD342E1DA64C010030D24D /* TasksViewController */ = {
 			isa = PBXGroup;
 			children = (
+				0641E9E91DABA92F0072176F /* TasksViewModelProtocol.swift */,
+				0641E9EB1DABA9600072176F /* TasksViewModel.swift */,
 				06FD342F1DA67BFE0030D24D /* TasksViewController.swift */,
 			);
 			path = TasksViewController;
@@ -259,6 +265,8 @@
 				DA646C811BCD877E002965D7 /* TaskList.swift in Sources */,
 				DA646C7F1BCD7615002965D7 /* Task.swift in Sources */,
 				06FD34321DA6826B0030D24D /* TasksListViewModelProtocol.swift in Sources */,
+				0641E9EA1DABA92F0072176F /* TasksViewModelProtocol.swift in Sources */,
+				0641E9EC1DABA9600072176F /* TasksViewModel.swift in Sources */,
 				06FD34301DA67BFE0030D24D /* TasksViewController.swift in Sources */,
 				06FD342D1DA64AE60030D24D /* TaskListsViewController.swift in Sources */,
 				06FD34341DA683330030D24D /* TasksListViewModel.swift in Sources */,

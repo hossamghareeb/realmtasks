@@ -14,10 +14,10 @@
             buildForArchiving = "YES">
             <BuildableReference
                BuildableIdentifier = 'primary'
-               BlueprintIdentifier = '60F67E99321F1749EC01D189DCC28BDF'
-               BlueprintName = 'Realm'
+               BlueprintIdentifier = '153761C84E3A539D0E066DABD58B75DC'
+               BlueprintName = 'KVOController'
                ReferencedContainer = 'container:Pods.xcodeproj'
-               BuildableName = 'Realm.framework'>
+               BuildableName = 'KVOController.framework'>
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>

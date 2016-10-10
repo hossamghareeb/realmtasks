@@ -4,6 +4,11 @@
 <dict>
 	<key>SchemeUserState</key>
 	<dict>
+		<key>KVOController.xcscheme</key>
+		<dict>
+			<key>isShown</key>
+			<false/>
+		</dict>
 		<key>Pods-RealmTasks.xcscheme</key>
 		<dict>
 			<key>isShown</key>
@@ -22,17 +27,22 @@
 	</dict>
 	<key>SuppressBuildableAutocreation</key>
 	<dict>
-		<key>1CF072315CC76A2E5650935CB0A5754D</key>
+		<key>153761C84E3A539D0E066DABD58B75DC</key>
 		<dict>
 			<key>primary</key>
 			<true/>
 		</dict>
-		<key>84B498D0B9D9442A1A3FAA7CFB30951D</key>
+		<key>60F67E99321F1749EC01D189DCC28BDF</key>
 		<dict>
 			<key>primary</key>
 			<true/>
 		</dict>
-		<key>D7520A7B546D3A4813C795C934E8B556</key>
+		<key>884A49680CE64F860B183EFBDF846974</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>A513696A872C09FD9519678CAF099AEE</key>
 		<dict>
 			<key>primary</key>
 			<true/>

@@ -7,112 +7,105 @@
 //
 
 import UIKit
-import RealmSwift
+import KVOController
 
 class TaskListsViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
-
-    var lists : Results<TaskList>!
     
     var isEditingMode = false
     
     var currentCreateAction:UIAlertAction!
     
-    let viewModel: TasksListViewModelProtocol = TasksListViewModel()
+    var viewModel: TasksListViewModelProtocol?
     
     @IBOutlet weak var taskListsTableView: UITableView!
     
+    override func viewDidLoad() {
+        setUpViewModel()
+    }
+    
+    func setUpViewModel(){
+        
+        self.viewModel = TasksListViewModel()
+        
+        self.KVOController.observe(self.viewModel as? AnyObject, keyPath: "tasksList", options: [.New, .Initial]) { (viewController, viewModel, change) in
+            
+            self.taskListsTableView.reloadData()
+        }
+        
+        self.KVOController.observe(self.viewModel as? AnyObject, keyPath: "isEditingMode", options: [.Initial, .New]) { (viewController, viewModel, change) in
+            
+            if let isEdit = change[NSKeyValueChangeNewKey] as? Bool{
+                self.taskListsTableView.setEditing(isEdit, animated: true)
+            }
+        }
+        
+        self.KVOController.observe(self.viewModel as? AnyObject, keyPath: "newListNameIsValid", options: [.Initial, .New]) { (viewController, viewModel, change) in
+            
+            if let nameIsValid = change[NSKeyValueChangeNewKey] as? Bool, let action = self.currentCreateAction{
+                action.enabled = nameIsValid
+            }
+        }
+
+    }
     
     override func viewWillAppear(animated: Bool) {
         readTasksAndUpdateUI()
     }
     
     func readTasksAndUpdateUI(){
-        
-        lists = uiRealm.objects(TaskList)
-        self.taskListsTableView.setEditing(false, animated: true)
-        self.taskListsTableView.reloadData()
+        self.viewModel!.loadTaskLists()
     }
     
     // MARK: - User Actions -
     
-    
     @IBAction func didSelectSortCriteria(sender: UISegmentedControl) {
         
         if sender.selectedSegmentIndex == 0{
-            
-            // A-Z
-            self.lists = self.lists.sorted("name")
+            self.viewModel!.sortBy(.name)
         }
         else{
             // date
-            self.lists = self.lists.sorted("createdAt", ascending:false)
+            self.viewModel!.sortBy(.createdAt)
         }
-        self.taskListsTableView.reloadData()
     }
     
     @IBAction func didClickOnEditButton(sender: UIBarButtonItem) {
-        isEditingMode = !isEditingMode
-        self.taskListsTableView.setEditing(isEditingMode, animated: true)
+        self.viewModel?.toggleEditMode()
     }
     
     @IBAction func didClickOnAddButton(sender: UIBarButtonItem) {
         
-        displayAlertToAddTaskList(nil)
+        displayAlertToAddTaskList(-1)
     }
     
     //Enable the create action of the alert only if textfield text is not empty
     func listNameFieldDidChange(textField:UITextField){
-        self.currentCreateAction.enabled = textField.text?.characters.count > 0
+        self.viewModel?.newListName = textField.text!
     }
     
-    func displayAlertToAddTaskList(updatedList:TaskList!){
+    func displayAlertToAddTaskList(listIndex:Int){
         
-        var title = "New Tasks List"
-        var doneTitle = "Create"
-        if updatedList != nil{
-            title = "Update Tasks List"
-            doneTitle = "Update"
-        }
+        self.viewModel?.startUpdateListAtIndex(listIndex)
+        let title = self.viewModel?.popupNewOrEditListTitleString
+        let doneTitle = self.viewModel?.popupNewOrEditListDoneString
         
-        let alertController = UIAlertController(title: title, message: "Write the name of your tasks list.", preferredStyle: UIAlertControllerStyle.Alert)
+        let alertController = UIAlertController(title: title, message: self.viewModel?.popupNewOrEditListMessageString, preferredStyle: UIAlertControllerStyle.Alert)
         let createAction = UIAlertAction(title: doneTitle, style: UIAlertActionStyle.Default) { (action) -> Void in
             
-            let listName = alertController.textFields?.first?.text
-            
-            if updatedList != nil{
-                // update mode
-                try! uiRealm.write{
-                    updatedList.name = listName!
-                    self.readTasksAndUpdateUI()
-                }
-            }
-            else{
-                
-                let newTaskList = TaskList()
-                newTaskList.name = listName!
-                
-                try! uiRealm.write{
-                    
-                    uiRealm.add(newTaskList)
-                    self.readTasksAndUpdateUI()
-                }
-            }
-            
-            print(listName)
+            self.viewModel?.didFinishAddingOrUpdatingList()
         }
         
         alertController.addAction(createAction)
         createAction.enabled = false
         self.currentCreateAction = createAction
         
-        alertController.addAction(UIAlertAction(title: "Cancel", style: UIAlertActionStyle.Cancel, handler: nil))
+        alertController.addAction(UIAlertAction(title: self.viewModel?.popupNewOrEditListCancelString, style: UIAlertActionStyle.Cancel, handler: nil))
         
         alertController.addTextFieldWithConfigurationHandler { (textField) -> Void in
-            textField.placeholder = "Task List Name"
+            textField.placeholder = self.viewModel?.popupNewOrEditListFieldPlaceholderString
             textField.addTarget(self, action: #selector(TaskListsViewController.listNameFieldDidChange(_:)), forControlEvents: UIControlEvents.EditingChanged)
-            if updatedList != nil{
-                textField.text = updatedList.name
-            }
+            
+            textField.text = self.viewModel?.newListName
         }
         
         self.presentViewController(alertController, animated: true, completion: nil)
@@ -122,40 +115,29 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
     
     func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int
     {
-        if let listsTasks = lists{
-            return listsTasks.count
-        }
-        return 0
+        return viewModel!.listsCount
     }
     
     func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell{
         
         let cell = tableView.dequeueReusableCellWithIdentifier("listCell")
         
-        let list = lists[indexPath.row]
-        
-        cell?.textLabel?.text = list.name
-        cell?.detailTextLabel?.text = "\(list.tasks.count) Tasks"
+        cell?.textLabel?.text = self.viewModel?.listNameAtIndex(indexPath.row)
+        cell?.detailTextLabel?.text = self.viewModel?.listDetailsTextAtIndex(indexPath.row)
         return cell!
     }
     
     func tableView(tableView: UITableView, editActionsForRowAtIndexPath indexPath: NSIndexPath) -> [UITableViewRowAction]? {
-        let deleteAction = UITableViewRowAction(style: UITableViewRowActionStyle.Destructive, title: "Delete") { (deleteAction, indexPath) -> Void in
+        let deleteAction = UITableViewRowAction(style: UITableViewRowActionStyle.Destructive, title: self.viewModel!.deleteListTitle) { (deleteAction, indexPath) -> Void in
             
             //Deletion will go here
             
-            let listToBeDeleted = self.lists[indexPath.row]
-            try! uiRealm.write{
-                
-                uiRealm.delete(listToBeDeleted)
-                self.readTasksAndUpdateUI()
-            }
+            self.viewModel?.deleteListAtIndex(indexPath.row)
         }
-        let editAction = UITableViewRowAction(style: UITableViewRowActionStyle.Normal, title: "Edit") { (editAction, indexPath) -> Void in
+        let editAction = UITableViewRowAction(style: UITableViewRowActionStyle.Normal, title: self.viewModel!.editListTitle) { (editAction, indexPath) -> Void in
             
             // Editing will go here
-            let listToBeUpdated = self.lists[indexPath.row]
-            self.displayAlertToAddTaskList(listToBeUpdated)
+            self.displayAlertToAddTaskList(indexPath.row)
             
         }
         return [deleteAction, editAction]
@@ -164,7 +146,7 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
     
     func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
         
-        self.performSegueWithIdentifier("openTasks", sender: self.lists[indexPath.row])
+        self.performSegueWithIdentifier("openTasks", sender: self.viewModel?.listAtIndex(indexPath.row))
     }
     
     // MARK: - Navigation
