@@ -27,7 +27,9 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
         
         self.viewModel = TasksListViewModel()
         
-        self.KVOController.observe(self.viewModel as? AnyObject, keyPath: "tasksList", options: [.New, .Initial]) { (viewController, viewModel, change) in
+        self.KVOController.observe(self.viewModel as? AnyObject,
+                                   keyPath: "listsDidChange",
+                                   options: .New) { (viewController, viewModel, change) in
             
             self.taskListsTableView.reloadData()
         }
@@ -154,7 +156,7 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
     override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
         
         let tasksViewController = segue.destinationViewController as! TasksViewController
-        tasksViewController.selectedList = sender as! TaskList
+        tasksViewController.viewModel.selectedList = sender
     }
 
 }

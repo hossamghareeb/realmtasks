@@ -15,6 +15,8 @@ enum TasksListSortCriteria {
 
 protocol TasksListViewModelProtocol{
     
+    var listsDidChange: Bool {get}
+    
     var newListName: String {set get}
     
     var newListNameIsValid: Bool {get}
@@ -25,7 +27,7 @@ protocol TasksListViewModelProtocol{
     
     func toggleEditMode()
     
-    func listAtIndex(index: Int) -> TaskList?
+    func listAtIndex(index: Int) -> AnyObject?
     
     func loadTaskLists()
     func sortBy(sortCriteria: TasksListSortCriteria)

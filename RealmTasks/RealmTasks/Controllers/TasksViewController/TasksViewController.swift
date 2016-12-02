@@ -9,108 +9,94 @@
 import UIKit
 import RealmSwift
 
-
 class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
-    
-    var selectedList : TaskList!
-    var openTasks : Results<Task>!
-    var completedTasks : Results<Task>!
+
     var currentCreateAction:UIAlertAction!
     
-    var isEditingMode = false
+    var viewModel: TasksViewModelProtocol = TasksViewModel()
     
     @IBOutlet weak var tasksTableView: UITableView!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        self.title = selectedList.name
-        readTasksAndUpateUI()
+        self.viewModel.filterTasks()
+        
+        setUpViewModel()
+    }
+    
+    func setUpViewModel(){
+        
+        self.KVOController.observe(self.viewModel as? AnyObject, keyPath: "listName", options: [.New, .Initial]) { (viewController, viewModel, change) in
+            
+            if let newName = change[NSKeyValueChangeNewKey] as? String{
+                self.title = newName
+            }
+        }
+        
+        self.KVOController.observe(self.viewModel as? AnyObject, keyPath: "tasksDidChange", options: [.Initial, .New]) { (viewController, viewModel, change) in
+            
+            self.tasksTableView.reloadData()
+        }
+        self.KVOController.observe(self.viewModel as? AnyObject, keyPath: "isEditingMode", options: [.Initial, .New]) { (viewController, viewModel, change) in
+            
+            if let isEdit = change[NSKeyValueChangeNewKey] as? Bool{
+                self.tasksTableView.setEditing(isEdit, animated: true)
+            }
+        }
+        
+        self.KVOController.observe(self.viewModel as? AnyObject, keyPath: "taskNameIsValid", options: [.Initial, .New]) { (viewController, viewModel, change) in
+            
+            if let nameIsValid = change[NSKeyValueChangeNewKey] as? Bool, let action = self.currentCreateAction{
+                action.enabled = nameIsValid
+            }
+        }
     }
     
     // MARK: - User Actions -
     
     @IBAction func didClickOnEditTasks(sender: AnyObject) {
-        isEditingMode = !isEditingMode
-        self.tasksTableView.setEditing(isEditingMode, animated: true)
+        self.viewModel.toggleEditMode()
     }
+    
     @IBAction func didClickOnNewTask(sender: AnyObject) {
-        self.displayAlertToAddTask(nil)
-    }
-    func readTasksAndUpateUI(){
-        
-        completedTasks = self.selectedList.tasks.filter("isCompleted = true")
-        openTasks = self.selectedList.tasks.filter("isCompleted = false")
-        
-        self.tasksTableView.reloadData()
+        self.displayAlertToAddOrUpdateTask()
     }
     
     // MARK: - UITableViewDataSource -
     func numberOfSectionsInTableView(tableView: UITableView) -> Int {
-        return 2
+        return viewModel.numberOfSections
     }
     func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int{
         if section == 0{
-            return openTasks.count
+            return viewModel.numberOfOpenTasks
         }
-        return completedTasks.count
+        return viewModel.numberOfCompletedTasks
     }
     func tableView(tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        
-        if section == 0{
-            return "OPEN TASKS"
-        }
-        return "COMPLETED TASKS"
+        return viewModel.titleForSection(section)
     }
     
     func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell{
         let cell = tableView.dequeueReusableCellWithIdentifier("cell")
-        var task: Task!
+        var taskName: String = ""
         if indexPath.section == 0{
-            task = openTasks[indexPath.row]
+            taskName = self.viewModel.titleForOpenTaskAtIndex(indexPath.row)
         }
         else{
-            task = completedTasks[indexPath.row]
+            taskName = self.viewModel.titleForCompletedTaskAtIndex(indexPath.row)
         }
-        
-        cell?.textLabel?.text = task.name
+        cell?.textLabel?.text = taskName
         return cell!
     }
     
     
-    func displayAlertToAddTask(updatedTask:Task!){
+    func displayAlertToAddOrUpdateTask(){
         
-        var title = "New Task"
-        var doneTitle = "Create"
-        if updatedTask != nil{
-            title = "Update Task"
-            doneTitle = "Update"
-        }
-        
-        let alertController = UIAlertController(title: title, message: "Write the name of your task.", preferredStyle: UIAlertControllerStyle.Alert)
-        let createAction = UIAlertAction(title: doneTitle, style: UIAlertActionStyle.Default) { (action) -> Void in
+        let alertController = UIAlertController(title: self.viewModel.alertTitleForEditingTask, message: self.viewModel.alertMessageForEditingTask, preferredStyle: UIAlertControllerStyle.Alert)
+        let createAction = UIAlertAction(title: self.viewModel.alertDoneTiteForEditingTask, style: UIAlertActionStyle.Default) { (action) -> Void in
             
-            let taskName = alertController.textFields?.first?.text
-            
-            if updatedTask != nil{
-                // update mode
-                try! uiRealm.write{
-                    updatedTask.name = taskName!
-                    self.readTasksAndUpateUI()
-                }
-            }
-            else{
-                
-                let newTask = Task()
-                newTask.name = taskName!
-                
-                try! uiRealm.write{
-                    
-                    self.selectedList.tasks.append(newTask)
-                    self.readTasksAndUpateUI()
-                }
-            }
-            
-            print(taskName)
+            self.viewModel.didFinishAddingOrUpdatingTask()
         }
         
         alertController.addAction(createAction)
@@ -122,9 +108,8 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
         alertController.addTextFieldWithConfigurationHandler { (textField) -> Void in
             textField.placeholder = "Task Name"
             textField.addTarget(self, action: #selector(TasksViewController.taskNameFieldDidChange(_:)) , forControlEvents: UIControlEvents.EditingChanged)
-            if updatedTask != nil{
-                textField.text = updatedTask.name
-            }
+            textField.text = self.viewModel.newTaskName
+            
         }
         
         self.presentViewController(alertController, animated: true, completion: nil)
@@ -132,60 +117,39 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
 
     //Enable the create action of the alert only if textfield text is not empty
     func taskNameFieldDidChange(textField:UITextField){
-        self.currentCreateAction.enabled = textField.text?.characters.count > 0
+        self.viewModel.newTaskName = textField.text!
     }
     
     
     func tableView(tableView: UITableView, editActionsForRowAtIndexPath indexPath: NSIndexPath) -> [UITableViewRowAction]? {
         let deleteAction = UITableViewRowAction(style: UITableViewRowActionStyle.Destructive, title: "Delete") { (deleteAction, indexPath) -> Void in
             
-            //Deletion will go here
-            
-            var taskToBeDeleted: Task!
             if indexPath.section == 0{
-                taskToBeDeleted = self.openTasks[indexPath.row]
+                self.viewModel.deleteOpenTaskAtIndex(indexPath.row)
             }
             else{
-                taskToBeDeleted = self.completedTasks[indexPath.row]
-            }
-            
-            try! uiRealm.write{
-                uiRealm.delete(taskToBeDeleted)
-                self.readTasksAndUpateUI()
+                self.viewModel.deleteCompletedTaskAtIndex(indexPath.row)
             }
         }
         let editAction = UITableViewRowAction(style: UITableViewRowActionStyle.Normal, title: "Edit") { (editAction, indexPath) -> Void in
             
             // Editing will go here
-            var taskToBeUpdated: Task!
             if indexPath.section == 0{
-                taskToBeUpdated = self.openTasks[indexPath.row]
+                self.viewModel.startUpdateOpenTaskAtIndex(indexPath.row)
             }
             else{
-                taskToBeUpdated = self.completedTasks[indexPath.row]
+                self.viewModel.startUpdateOpenTaskAtIndex(indexPath.row)
             }
             
-            self.displayAlertToAddTask(taskToBeUpdated)
-            
+            self.displayAlertToAddOrUpdateTask()
         }
         
         let doneAction = UITableViewRowAction(style: UITableViewRowActionStyle.Normal, title: "Done") { (doneAction, indexPath) -> Void in
             // Editing will go here
-            var taskToBeUpdated: Task!
             if indexPath.section == 0{
-                taskToBeUpdated = self.openTasks[indexPath.row]
+                self.viewModel.markOpenTaskAsDoneAtIndex(indexPath.row)
             }
-            else{
-                taskToBeUpdated = self.completedTasks[indexPath.row]
-            }
-            try! uiRealm.write{
-                taskToBeUpdated.isCompleted = true
-                self.readTasksAndUpateUI()
-            }
-            
         }
-        return [deleteAction, editAction, doneAction]
+        return indexPath.section == 0 ? [deleteAction, editAction, doneAction] : [deleteAction, editAction]
     }
-
-
 }

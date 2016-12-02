@@ -11,7 +11,13 @@ import RealmSwift
 
 class TasksListViewModel: NSObject, TasksListViewModelProtocol{
 
-    dynamic var tasksList: [TaskList] = []
+    var tasksList: [TaskList] = []{
+        didSet{
+            self.listsDidChange = true
+        }
+    }
+    
+    dynamic var listsDidChange: Bool = false
     
     var newListName: String = ""{
         didSet{
@@ -88,7 +94,7 @@ class TasksListViewModel: NSObject, TasksListViewModelProtocol{
         }
     }
     
-    func listAtIndex(index: Int) -> TaskList? {
+    func listAtIndex(index: Int) -> AnyObject? {
         if index >= 0 && index < self.listsCount {
             return self.tasksList[index]
         }
