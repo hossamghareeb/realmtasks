@@ -18,8 +18,9 @@
 
 #import "RLMRealmUtil.hpp"
 
+#import "RLMObjectSchema_Private.hpp"
 #import "RLMObservation.hpp"
-#import "RLMRealm_Private.h"
+#import "RLMRealm_Private.hpp"
 #import "RLMUtil.hpp"
 
 #import <Realm/RLMConstants.h>
@@ -64,27 +65,6 @@ void RLMClearRealmCache() {
     s_realmsPerPath.clear();
 }
 
-void RLMInstallUncaughtExceptionHandler() {
-    static auto previousHandler = NSGetUncaughtExceptionHandler();
-
-    NSSetUncaughtExceptionHandler([](NSException *exception) {
-        NSNumber *threadID = @(pthread_mach_thread_np(pthread_self()));
-        {
-            std::lock_guard<std::mutex> lock(s_realmCacheMutex);
-            for (auto const& realmsPerThread : s_realmsPerPath) {
-                if (RLMRealm *realm = [realmsPerThread.second objectForKey:threadID]) {
-                    if (realm.inWriteTransaction) {
-                        [realm cancelWriteTransaction];
-                    }
-                }
-            }
-        }
-        if (previousHandler) {
-            previousHandler(exception);
-        }
-    });
-}
-
 namespace {
 class RLMNotificationHelper : public realm::BindingContext {
 public:
@@ -117,9 +97,11 @@ public:
 
     std::vector<ObserverState> get_observed_rows() override {
         @autoreleasepool {
-            auto realm = _realm;
-            [realm detachAllEnumerators];
-            return RLMGetObservedRows(realm.schema.objectSchema);
+            if (auto realm = _realm) {
+                [realm detachAllEnumerators];
+                return RLMGetObservedRows(realm->_info);
+            }
+            return {};
         }
     }
 
@@ -129,11 +111,13 @@ public:
         }
     }
 
-    void did_change(std::vector<ObserverState> const& observed, std::vector<void*> const& invalidated) override {
+    void did_change(std::vector<ObserverState> const& observed, std::vector<void*> const& invalidated, bool version_changed) override {
         try {
             @autoreleasepool {
                 RLMDidChange(observed, invalidated);
-                [_realm sendNotifications:RLMRealmDidChangeNotification];
+                if (version_changed) {
+                    [_realm sendNotifications:RLMRealmDidChangeNotification];
+                }
             }
         }
         catch (...) {

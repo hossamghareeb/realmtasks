@@ -72,7 +72,7 @@ static void changeArray(__unsafe_unretained RLMArray *const ar, NSKeyValueChange
     changeArray(ar, kind, f, [=] { return is; });
 }
 
-- (instancetype)initWithObjectClassName:(NSString *)objectClassName {
+- (instancetype)initWithObjectClassName:(__unsafe_unretained NSString *const)objectClassName {
     self = [super init];
     if (self) {
         _objectClassName = objectClassName;
@@ -141,7 +141,8 @@ static void RLMValidateMatchingObjectType(RLMArray *array, RLMObject *object) {
                             "This can happen if you try to insert objects into a RLMArray / List from a default value or from an overriden unmanaged initializer (`init()`).");
     }
     if (![array->_objectClassName isEqualToString:object->_objectSchema.className]) {
-        @throw RLMException(@"Object type '%@' does not match RLMArray type '%@'.", object->_objectSchema.className, array->_objectClassName);
+        @throw RLMException(@"Object type '%@' does not match RLMArray type '%@'.",
+                            object->_objectSchema.className, array->_objectClassName);
     }
 }
 
@@ -377,7 +378,7 @@ static void RLMValidateArrayBounds(__unsafe_unretained RLMArray *const ar,
     return [self sortedResultsUsingDescriptors:@[[RLMSortDescriptor sortDescriptorWithProperty:property ascending:ascending]]];
 }
 
-- (RLMResults *)sortedResultsUsingDescriptors:(NSArray *)properties
+- (RLMResults *)sortedResultsUsingDescriptors:(NSArray<RLMSortDescriptor *> *)properties
 {
     @throw RLMException(@"This method may only be called on RLMArray instances retrieved from an RLMRealm");
 }
