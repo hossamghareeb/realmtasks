@@ -8,30 +8,6 @@
 
 import UIKit
 import RealmSwift
-// FIXME: comparison operators with optionals were removed from the Swift Standard Libary.
-// Consider refactoring the code to use the non-optional operators.
-fileprivate func < <T : Comparable>(lhs: T?, rhs: T?) -> Bool {
-  switch (lhs, rhs) {
-  case let (l?, r?):
-    return l < r
-  case (nil, _?):
-    return true
-  default:
-    return false
-  }
-}
-
-// FIXME: comparison operators with optionals were removed from the Swift Standard Libary.
-// Consider refactoring the code to use the non-optional operators.
-fileprivate func > <T : Comparable>(lhs: T?, rhs: T?) -> Bool {
-  switch (lhs, rhs) {
-  case let (l?, r?):
-    return l > r
-  default:
-    return rhs < lhs
-  }
-}
-
 
 class TaskListsViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
 
@@ -83,7 +59,7 @@ class TaskListsViewController: UIViewController, UITableViewDelegate, UITableVie
     
     //Enable the create action of the alert only if textfield text is not empty
     func listNameFieldDidChange(_ textField:UITextField){
-        self.currentCreateAction.isEnabled = textField.text?.characters.count > 0
+        self.currentCreateAction.isEnabled = (textField.text?.characters.count)! > 0
     }
     
     func displayAlertToAddTaskList(_ updatedList:TaskList!){
