@@ -1,22 +1,21 @@
 /*************************************************************************
  *
- * REALM CONFIDENTIAL
- * __________________
+ * Copyright 2016 Realm Inc.
  *
- *  [2011] - [2015] Realm Inc
- *  All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * NOTICE:  All information contained herein is, and remains
- * the property of Realm Incorporated and its suppliers,
- * if any.  The intellectual and technical concepts contained
- * herein are proprietary to Realm Incorporated
- * and its suppliers and may be covered by U.S. and Foreign Patents,
- * patents in process, and are protected by trade secret or copyright law.
- * Dissemination of this information or reproduction of this material
- * is strictly forbidden unless prior written permission is obtained
- * from Realm Incorporated.
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  **************************************************************************/
+
 #ifndef REALM_STRING_HPP
 #define REALM_STRING_HPP
 
@@ -25,9 +24,10 @@
 #include <string>
 #include <ostream>
 #include <cstring>
+#include <vector>
 
 #include <cfloat>
-#include <math.h>
+#include <cmath>
 
 #include <realm/util/features.h>
 #include <realm/util/optional.hpp>
@@ -83,17 +83,17 @@ public:
     /// If \a external_data is 'null', \a data_size must be zero.
     StringData(const char* external_data, size_t data_size) noexcept;
 
-    template<class T, class A>
+    template <class T, class A>
     StringData(const std::basic_string<char, T, A>&);
 
-    template<class T, class A>
+    template <class T, class A>
     operator std::basic_string<char, T, A>() const;
 
     // StringData does not store data, callers must manage their own strings.
-    template<class T, class A>
+    template <class T, class A>
     StringData(std::basic_string<char, T, A>&&) = delete;
 
-    template<class T, class A>
+    template <class T, class A>
     StringData(const util::Optional<std::basic_string<char, T, A>>&);
 
     StringData(const null&) noexcept;
@@ -139,6 +139,10 @@ public:
     bool begins_with(StringData) const noexcept;
     bool ends_with(StringData) const noexcept;
     bool contains(StringData) const noexcept;
+    
+    // Wildcard matching ('?' for single char, '*' for zero or more chars)
+    // case insensitive version in unicode.hpp
+    bool like(StringData) const noexcept;
 
     //@{
     /// Undefined behavior if \a n, \a i, or <tt>i+n</tt> is greater than
@@ -149,62 +153,63 @@ public:
     StringData substr(size_t i) const noexcept;
     //@}
 
-    template<class C, class T>
-    friend std::basic_ostream<C,T>& operator<<(std::basic_ostream<C,T>&, const StringData&);
+    template <class C, class T>
+    friend std::basic_ostream<C, T>& operator<<(std::basic_ostream<C, T>&, const StringData&);
 
     explicit operator bool() const noexcept;
 
 private:
     const char* m_data;
     size_t m_size;
+    
+    static bool matchlike(const StringData& text, const StringData& pattern) noexcept;
 };
 
 
 // Implementation:
 
-inline StringData::StringData() noexcept:
-    m_data(nullptr),
-    m_size(0)
+inline StringData::StringData() noexcept
+    : m_data(nullptr)
+    , m_size(0)
 {
 }
 
-inline StringData::StringData(const char* external_data, size_t data_size) noexcept:
-    m_data(external_data),
-    m_size(data_size)
+inline StringData::StringData(const char* external_data, size_t data_size) noexcept
+    : m_data(external_data)
+    , m_size(data_size)
 {
     REALM_ASSERT_DEBUG(external_data || data_size == 0);
 }
 
-template<class T, class A>
-inline StringData::StringData(const std::basic_string<char, T, A>& s):
-    m_data(s.data()),
-    m_size(s.size())
+template <class T, class A>
+inline StringData::StringData(const std::basic_string<char, T, A>& s)
+    : m_data(s.data())
+    , m_size(s.size())
 {
 }
 
-template<class T, class A>
+template <class T, class A>
 inline StringData::operator std::basic_string<char, T, A>() const
 {
     return std::basic_string<char, T, A>(m_data, m_size);
 }
 
-template<class T, class A>
-inline StringData::StringData(const util::Optional<std::basic_string<char, T, A>>& s):
-    m_data(s ? s->data() : nullptr),
-    m_size(s ? s->size() : 0)
+template <class T, class A>
+inline StringData::StringData(const util::Optional<std::basic_string<char, T, A>>& s)
+    : m_data(s ? s->data() : nullptr)
+    , m_size(s ? s->size() : 0)
 {
 }
 
-inline StringData::StringData(const null&) noexcept:
-    m_data(nullptr),
-    m_size(0)
+inline StringData::StringData(const null&) noexcept
+    : m_data(nullptr)
+    , m_size(0)
 {
-
 }
 
-inline StringData::StringData(const char* c_str) noexcept:
-    m_data(c_str),
-    m_size(0)
+inline StringData::StringData(const char* c_str) noexcept
+    : m_data(c_str)
+    , m_size(0)
 {
     if (c_str)
         m_size = std::char_traits<char>::length(c_str);
@@ -247,8 +252,7 @@ inline bool operator<(const StringData& a, const StringData& b) noexcept
         // equal to empty strings.
         return true;
     }
-    return std::lexicographical_compare(a.m_data, a.m_data + a.m_size,
-                                        b.m_data, b.m_data + b.m_size);
+    return std::lexicographical_compare(a.m_data, a.m_data + a.m_size, b.m_data, b.m_data + b.m_size);
 }
 
 inline bool operator>(const StringData& a, const StringData& b) noexcept
@@ -285,13 +289,89 @@ inline bool StringData::contains(StringData d) const noexcept
     if (is_null() && !d.is_null())
         return false;
 
-    return d.m_size == 0 ||
-        std::search(m_data, m_data + m_size, d.m_data, d.m_data + d.m_size) != m_data + m_size;
+    return d.m_size == 0 || std::search(m_data, m_data + m_size, d.m_data, d.m_data + d.m_size) != m_data + m_size;
+}
+
+inline bool StringData::matchlike(const StringData& text, const StringData& pattern) noexcept
+{
+    std::vector<size_t> textpos;
+    std::vector<size_t> patternpos;
+    size_t p1 = 0; // position in text (haystack)
+    size_t p2 = 0; // position in pattern (needle)
+    
+    while (true) {
+        if (p1 == text.size()) {
+            if (p2 == pattern.size())
+                return true;
+            if (p2 == pattern.size()-1 && pattern[p2] == '*')
+                return true;
+            goto no_match;
+        }
+        if (p2 == pattern.size())
+            goto no_match;
+        
+        if (pattern[p2] == '*') {
+            textpos.push_back(p1);
+            patternpos.push_back(++p2);
+            continue;
+        }
+        if (pattern[p2] == '?') {
+            // utf-8 encoded characters may take up multiple bytes
+            if ((text[p1] & 0x80) == 0) {
+                ++p1;
+                ++p2;
+                continue;
+            }
+            else {
+                size_t p = 1;
+                while (p1+p != text.size() && (text[p1+p] & 0xc0) == 0x80)
+                    ++p;
+                p1 += p;
+                ++p2;
+                continue;
+            }
+        }
+        
+        if (pattern[p2] == text[p1]) {
+            ++p1;
+            ++p2;
+            continue;
+        }
+        
+    no_match:
+        if (textpos.empty())
+            return false;
+        else {
+            if (p1 == text.size()) {
+                textpos.pop_back();
+                patternpos.pop_back();
+                
+                if (textpos.empty())
+                    return false;
+                
+                p1 = textpos.back();
+            }
+            else {
+                p1 = textpos.back();
+                textpos.back() = ++p1;
+            }
+            p2 = patternpos.back();
+        }
+    }
+}
+
+inline bool StringData::like(StringData d) const noexcept
+{
+    if (is_null() || d.is_null()) {
+        return (is_null() && d.is_null());
+    }
+    
+    return matchlike(*this, d);
 }
 
 inline StringData StringData::prefix(size_t n) const noexcept
 {
-    return substr(0,n);
+    return substr(0, n);
 }
 
 inline StringData StringData::suffix(size_t n) const noexcept
@@ -309,8 +389,8 @@ inline StringData StringData::substr(size_t i) const noexcept
     return substr(i, m_size - i);
 }
 
-template<class C, class T>
-inline std::basic_ostream<C,T>& operator<<(std::basic_ostream<C,T>& out, const StringData& d)
+template <class C, class T>
+inline std::basic_ostream<C, T>& operator<<(std::basic_ostream<C, T>& out, const StringData& d)
 {
     for (const char* i = d.m_data; i != d.m_data + d.m_size; ++i)
         out << *i;

@@ -8,6 +8,30 @@
 
 import UIKit
 import RealmSwift
+// FIXME: comparison operators with optionals were removed from the Swift Standard Libary.
+// Consider refactoring the code to use the non-optional operators.
+fileprivate func < <T : Comparable>(lhs: T?, rhs: T?) -> Bool {
+  switch (lhs, rhs) {
+  case let (l?, r?):
+    return l < r
+  case (nil, _?):
+    return true
+  default:
+    return false
+  }
+}
+
+// FIXME: comparison operators with optionals were removed from the Swift Standard Libary.
+// Consider refactoring the code to use the non-optional operators.
+fileprivate func > <T : Comparable>(lhs: T?, rhs: T?) -> Bool {
+  switch (lhs, rhs) {
+  case let (l?, r?):
+    return l > r
+  default:
+    return rhs < lhs
+  }
+}
+
 
 
 class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
@@ -29,11 +53,11 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
     
     // MARK: - User Actions -
     
-    @IBAction func didClickOnEditTasks(sender: AnyObject) {
+    @IBAction func didClickOnEditTasks(_ sender: AnyObject) {
         isEditingMode = !isEditingMode
         self.tasksTableView.setEditing(isEditingMode, animated: true)
     }
-    @IBAction func didClickOnNewTask(sender: AnyObject) {
+    @IBAction func didClickOnNewTask(_ sender: AnyObject) {
         self.displayAlertToAddTask(nil)
     }
     func readTasksAndUpateUI(){
@@ -45,16 +69,16 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
     }
     
     // MARK: - UITableViewDataSource -
-    func numberOfSectionsInTableView(tableView: UITableView) -> Int {
+    func numberOfSections(in tableView: UITableView) -> Int {
         return 2
     }
-    func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int{
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int{
         if section == 0{
             return openTasks.count
         }
         return completedTasks.count
     }
-    func tableView(tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+    func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         
         if section == 0{
             return "OPEN TASKS"
@@ -62,8 +86,8 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
         return "COMPLETED TASKS"
     }
     
-    func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell{
-        let cell = tableView.dequeueReusableCellWithIdentifier("cell")
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell{
+        let cell = tableView.dequeueReusableCell(withIdentifier: "cell")
         var task: Task!
         if indexPath.section == 0{
             task = openTasks[indexPath.row]
@@ -77,7 +101,7 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
     }
     
     
-    func displayAlertToAddTask(updatedTask:Task!){
+    func displayAlertToAddTask(_ updatedTask:Task!){
         
         var title = "New Task"
         var doneTitle = "Create"
@@ -86,8 +110,8 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
             doneTitle = "Update"
         }
         
-        let alertController = UIAlertController(title: title, message: "Write the name of your task.", preferredStyle: UIAlertControllerStyle.Alert)
-        let createAction = UIAlertAction(title: doneTitle, style: UIAlertActionStyle.Default) { (action) -> Void in
+        let alertController = UIAlertController(title: title, message: "Write the name of your task.", preferredStyle: UIAlertControllerStyle.alert)
+        let createAction = UIAlertAction(title: doneTitle, style: UIAlertActionStyle.default) { (action) -> Void in
             
             let taskName = alertController.textFields?.first?.text
             
@@ -110,34 +134,34 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
                 }
             }
             
-            print(taskName)
+            print(taskName ?? "")
         }
         
         alertController.addAction(createAction)
-        createAction.enabled = false
+        createAction.isEnabled = false
         self.currentCreateAction = createAction
         
-        alertController.addAction(UIAlertAction(title: "Cancel", style: UIAlertActionStyle.Cancel, handler: nil))
+        alertController.addAction(UIAlertAction(title: "Cancel", style: UIAlertActionStyle.cancel, handler: nil))
         
-        alertController.addTextFieldWithConfigurationHandler { (textField) -> Void in
+        alertController.addTextField { (textField) -> Void in
             textField.placeholder = "Task Name"
-            textField.addTarget(self, action: #selector(TasksViewController.taskNameFieldDidChange(_:)) , forControlEvents: UIControlEvents.EditingChanged)
+            textField.addTarget(self, action: #selector(TasksViewController.taskNameFieldDidChange(_:)) , for: UIControlEvents.editingChanged)
             if updatedTask != nil{
                 textField.text = updatedTask.name
             }
         }
         
-        self.presentViewController(alertController, animated: true, completion: nil)
+        self.present(alertController, animated: true, completion: nil)
     }
 
     //Enable the create action of the alert only if textfield text is not empty
-    func taskNameFieldDidChange(textField:UITextField){
-        self.currentCreateAction.enabled = textField.text?.characters.count > 0
+    func taskNameFieldDidChange(_ textField:UITextField){
+        self.currentCreateAction.isEnabled = textField.text?.characters.count > 0
     }
     
     
-    func tableView(tableView: UITableView, editActionsForRowAtIndexPath indexPath: NSIndexPath) -> [UITableViewRowAction]? {
-        let deleteAction = UITableViewRowAction(style: UITableViewRowActionStyle.Destructive, title: "Delete") { (deleteAction, indexPath) -> Void in
+    func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
+        let deleteAction = UITableViewRowAction(style: .default, title: "Delete") { (deleteAction, indexPath) -> Void in
             
             //Deletion will go here
             
@@ -154,7 +178,7 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
                 self.readTasksAndUpateUI()
             }
         }
-        let editAction = UITableViewRowAction(style: UITableViewRowActionStyle.Normal, title: "Edit") { (editAction, indexPath) -> Void in
+        let editAction = UITableViewRowAction(style: UITableViewRowActionStyle.normal, title: "Edit") { (editAction, indexPath) -> Void in
             
             // Editing will go here
             var taskToBeUpdated: Task!
@@ -169,7 +193,7 @@ class TasksViewController: UIViewController, UITableViewDelegate, UITableViewDat
             
         }
         
-        let doneAction = UITableViewRowAction(style: UITableViewRowActionStyle.Normal, title: "Done") { (doneAction, indexPath) -> Void in
+        let doneAction = UITableViewRowAction(style: UITableViewRowActionStyle.normal, title: "Done") { (doneAction, indexPath) -> Void in
             // Editing will go here
             var taskToBeUpdated: Task!
             if indexPath.section == 0{

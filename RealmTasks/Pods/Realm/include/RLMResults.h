@@ -174,7 +174,7 @@ NS_ASSUME_NONNULL_BEGIN
 
  @return    An `RLMResults` sorted by the specified properties.
  */
-- (RLMResults<RLMObjectType> *)sortedResultsUsingDescriptors:(NSArray *)properties;
+- (RLMResults<RLMObjectType> *)sortedResultsUsingDescriptors:(NSArray<RLMSortDescriptor *> *)properties;
 
 #pragma mark - Notifications
 
@@ -301,7 +301,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (nullable NSNumber *)averageOfProperty:(NSString *)property;
 
 /// :nodoc:
-- (id)objectAtIndexedSubscript:(NSUInteger)index;
+- (RLMObjectType)objectAtIndexedSubscript:(NSUInteger)index;
 
 #pragma mark - Unavailable Methods
 
