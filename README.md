@@ -9,7 +9,6 @@ Build a simple ToDo list app using Realm database and Swift 3.0. This project is
 <p><img src ="https://github.com/hossamghareeb/realmtasks/blob/master/mockup/screenshot3.png"/></p>
 <p><img src ="https://github.com/hossamghareeb/realmtasks/blob/master/mockup/screenshot4.png"/></p>
 
----
 
 # Licensce
 
